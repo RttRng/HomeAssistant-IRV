@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'custom_components/my_integration/manifest.json'
+      - 'custom_components/irv/manifest.json'
 
 jobs:
   release:
