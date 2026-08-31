@@ -8,7 +8,7 @@ from homeassistant.components.binary_sensor import BinarySensorEntity
 ENV_SENSOR_MAP = {
     "obyvak": {
         "sonda": ("Sonda", "°C", "sensor"),
-        "version": ("Verze","ver", "sensor"),
+        "version": ("Verze",None, "sensor"),
         "in": ("Příchozí","msgs","sensor"),
         "out":("Odchozí","msgs","sensor"),
     },
@@ -18,13 +18,13 @@ ENV_SENSOR_MAP = {
         "bme/vlhkost": ("Vlhkost", "%", "sensor"),
         "bme/tlak": ("Tlak", "kPa", "sensor"),
         "bme/rosny_bod": ("Rosný bod", "°C", "sensor"),
-        "version": ("Verze","ver", "sensor"),
+        "version": ("Verze",None, "sensor"),
         "in": ("Příchozí","msgs","sensor"),
         "out":("Odchozí","msgs","sensor"),
     },
 
     "borek": {
-        "version": ("Verze","ver", "sensor"),
+        "version": ("Verze",None, "sensor"),
         "in": ("Příchozí","msgs","sensor"),
         "out":("Odchozí","msgs","sensor"),
     },
@@ -33,19 +33,19 @@ ENV_SENSOR_MAP = {
         "sonda1": ("Sonda 1", "°C", "sensor"),
         "sonda2": ("Sonda 2", "°C", "sensor"),
         "sonda3": ("Sonda 3", "°C", "sensor"),
-        "version": ("Verze","ver", "sensor"),
+        "version": ("Verze",None, "sensor"),
         "in": ("Příchozí","msgs","sensor"),
         "out":("Odchozí","msgs","sensor"),
     },
 
     "mirosov": {
-        "version": ("Verze","ver", "sensor"),
+        "version": ("Verze",None, "sensor"),
         "in": ("Příchozí","msgs","sensor"),
         "out":("Odchozí","msgs","sensor"),
     },
 
     "test": {
-        "version": ("Verze","ver", "sensor"),
+        "version": ("Verze",None, "sensor"),
         "in": ("Příchozí","msgs","sensor"),
         "out":("Odchozí","msgs","sensor"),
     },
