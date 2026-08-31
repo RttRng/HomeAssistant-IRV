@@ -16,7 +16,7 @@ jobs:
       - name: Read version from manifest.json
         id: get_version
         run: |
-          VERSION=$(jq -r '.version' custom_components/my_integration/manifest.json)
+          VERSION=$(jq -r '.version' custom_components/irv/manifest.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag already exists
