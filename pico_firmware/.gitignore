@@ -1,0 +1,8 @@
+.micropico
+/init
+wifi.json
+*.code-workspace
+/.vscode
+*.txt
+mqtt.json
+/branches
