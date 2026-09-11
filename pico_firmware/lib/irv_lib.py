@@ -126,7 +126,7 @@ class Rele:
         self.state = state
     def report(self):
         self.logger.print("Reporting state for",self.name)
-        label = self.valueOn if self.get() else valueOff
+        label = self.valueOn if self.get() else self.valueOff
         return {self.name:{"value":str(self.get()),"label":label}}
     def command(self, topic, msg):
         if topic == 'control/'+self.logger.name+"/"+self.name:
@@ -204,7 +204,8 @@ class SGReady:
         self.name = name
         self.state1 = 0
         self.state2 = 0
-        self.inverted = inverted
+        self.inverted1 = inverted1
+        self.inverted2 = inverted2
         self.value00 = value00
         self.value01 = value01
         self.value11 = value11
@@ -374,7 +375,7 @@ class MQTT:
             self.logger.print("Failed to publish sleeping:", e)
     
     
-    def discover():
+    def discover(self):
         payload = {}
         payload.update({"PERIPHERALS":self.config["PERIPHERALS"]})
         payload.update({"SETTINGS":self.config["SETTINGS"]})

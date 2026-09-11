@@ -39,7 +39,7 @@ TOPIC_O = {"CHECK":b'status',
            "REPORT":name_base,
            "SLEEP":name_base+"/sleep",
            "PING":b'ping',
-           "DISCOVER":'discover/'+name_base
+           "DISCOVER":'discovery/'+name_base
            }
 
 peripherals = []
@@ -54,7 +54,7 @@ for p in config["PERIPHERALS"]:
     if p["TYPE"]=="DHT":
         peripherals.append(Sonda(pin=p["PIN"],name=p["NAME"],logger=logger))
     if p["TYPE"]=="VENTIL":
-        peripherals.append(Ventil(pin=p["PIN"],name=p["NAME"],logger=logger,inverted=p["INVERTED"]))
+        peripherals.append(Ventil(pin=p["PIN"], name=p["NAME"], logger=logger, inverted=p["INVERTED"], valueOn=p["VALUEON"],valueOff=p["VALUEOFF"]))
     if p["TYPE"]=="KIT":
         peripherals.append(KIT(pins=p["PINS"],name=p["NAME"],logger=logger))
     if p["TYPE"]=="SGREADY":
