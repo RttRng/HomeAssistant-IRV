@@ -1,7 +1,7 @@
 {"files":[
     {"name":"wifi.json","path":""},
     {"name":"mqtt.json","path":""},
-    {"name":"sleep.json","path":""}
+    {"name":"sleep.json","path":""},
     {"name":"bme280_float.py","path":"lib/"},
     {"name":"irv_lib.py","path":"lib/"},
     {"name":"simple.mpy","path":"lib/umqtt/"},

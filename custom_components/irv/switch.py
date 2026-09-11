@@ -1,27 +1,25 @@
+"""Switch platform for IRV (desired state for RELE / VENTIL peripherals)."""
+from __future__ import annotations
+
 from homeassistant.components.switch import SwitchEntity
 
-DOMAIN = "irv"
+from .const import DOMAIN, control_topic
+from .peripheral import Peripheral
 
-# ---------------------------------------------------------
-#  A) RELÉ SWITCH – plná obnova + MQTT publish
-# ---------------------------------------------------------
 
 class IRVSwitch(SwitchEntity):
-    """MQTT control switch for Pico relays."""
+    """Desired-state switch. Publishes plain 'true'/'false' to control/<board>/<name>."""
 
-    def __init__(self, handler, room, topic, name):
+    def __init__(self, handler, peripheral: Peripheral, device_info):
         self.handler = handler
-        self.room = room
-        self.topic = topic
+        self.peripheral = peripheral
+        self._mqtt_topic = control_topic(peripheral.board, peripheral.name)
 
-        # MQTT topic pro Pico
-        self._mqtt_topic = f"control/{room}/{topic}"
+        self._attr_device_info = device_info
+        self._attr_has_entity_name = True
+        self._attr_name = peripheral.name.replace("_", " ").title()
+        self._attr_unique_id = f"irv_{peripheral.board}_{peripheral.name}_switch"
 
-        # HA metadata
-        self._attr_name = f"Pico {room} {name}"
-        self._attr_unique_id = f"irv_switch_{room}_{topic}"
-
-        # interní stav
         self._state = False
         self._restored = False
 
@@ -32,61 +30,25 @@ class IRVSwitch(SwitchEntity):
     async def async_turn_on(self, **kwargs):
         self._state = True
         self.async_write_ha_state()
-
         await self.handler.publish(
-            self._mqtt_topic,
-            "true",
-            retain=True,
-            qos=2,
-            entity_id=self.entity_id,
+            self._mqtt_topic, "true", retain=True, qos=2, entity_id=self.entity_id
         )
 
     async def async_turn_off(self, **kwargs):
         self._state = False
         self.async_write_ha_state()
-
         await self.handler.publish(
-            self._mqtt_topic,
-            "false",
-            retain=True,
-            qos=2,
-            entity_id=self.entity_id,
+            self._mqtt_topic, "false", retain=True, qos=2, entity_id=self.entity_id
         )
 
-    def update_from_sensor(self, value):
-        """MQTT update from Pico — ignorujeme po obnově."""
-        if self._restored:
-            return
-        self._state = value
-        self.async_write_ha_state()
-
     def set_restored_state(self, state):
-        """Obnova stavu po restartu HA."""
+        """Restore UI state after an HA restart, without publishing to MQTT."""
         self._restored = True
-        self._state = (str(state).lower() == "true")
+        self._state = str(state).lower() == "true"
         self.async_write_ha_state()
 
-
-# ---------------------------------------------------------
-#  C) SETUP ENTRY – registrace entit
-# ---------------------------------------------------------
 
 async def async_setup_entry(hass, entry, async_add_entities):
     handler = hass.data[DOMAIN]["handler"]
-    entities = []
-
-    # --- Relé switche ---
-    SWITCH_MAP = {
-        "kotel": ["rele"],
-        "borek": ["rele"],
-        "obyvak": ["rele"],
-        "mirosov": ["rele1", "rele2"],
-    }
-
-    for room, topics in SWITCH_MAP.items():
-        for topic in topics:
-            sw = IRVSwitch(handler, room, topic, topic)
-            handler.register_switch(room, topic, sw)  # handler si uloží entity_id → entity
-            entities.append(sw)
-
-    async_add_entities(entities)
+    handler.add_switch_entities = async_add_entities
+    async_add_entities([])

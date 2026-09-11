@@ -1,5 +1,7 @@
 from homeassistant.components.button import ButtonEntity
 
+from .const import BUTTONS, DOMAIN
+
 
 class IRVButton(ButtonEntity):
     """Static MQTT action button."""
@@ -12,18 +14,11 @@ class IRVButton(ButtonEntity):
         self.payload = payload
 
     async def async_press(self):
-        await self.handler.publish(self.topic, self.payload,retain=False,qos=1)
+        await self.handler.publish(self.topic, self.payload, retain=False, qos=1)
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    handler = hass.data["irv"]["handler"]
-
-    BUTTONS = [
-        ("Check", "check", "ALL"),
-        ("Data", "give", "ALL"),
-        ("Goodbye", "status", "goodbye"),
-        ("Reset", "reset", "ALL"),
-    ]
+    handler = hass.data[DOMAIN]["handler"]
 
     entities = [
         IRVButton(handler, name, topic, payload)

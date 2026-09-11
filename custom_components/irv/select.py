@@ -1,101 +1,66 @@
+"""Select platform for IRV (desired state for SGREADY peripherals)."""
+from __future__ import annotations
+
 from homeassistant.components.select import SelectEntity
 
-DOMAIN = "irv"
+from .const import DOMAIN, control_topic
+from .peripheral import Peripheral
 
-# -----------------------------
-# SG READY SELECT
-# -----------------------------
-
-SG_READY_MAP = {
-    "0:0": "0:0 - Normální běh",
-    "1:0": "1:0 - Blokace běhu",
-    "0:1": "0:1 - 120% (Vlastní 1)",
-    "1:1": "1:1 - 150% (Vlastní 2)",
-}
 
 class IRVSGReadySelect(SelectEntity):
-    """SG Ready mode selector (desired state)."""
+    """Desired-state select for an SGReady peripheral.
 
-    def __init__(self, handler):
+    Options are the peripheral's own 4 label strings (value00/01/10/11), as
+    declared in its board's discovery payload. The selected label is
+    published verbatim as the MQTT command, matching irv_lib.py's
+    SGReady.command().
+    """
+
+    def __init__(self, handler, peripheral: Peripheral, device_info):
         self.handler = handler
+        self.peripheral = peripheral
+        self._mqtt_topic = control_topic(peripheral.board, peripheral.name)
 
-        # dva MQTT topicy, ale používáme je jen při změně uživatelem
-        self._mqtt_topics = [
-            "control/mirosov/rele1",
-            "control/mirosov/rele2",
+        self._attr_device_info = device_info
+        self._attr_has_entity_name = True
+        self._attr_name = peripheral.name.replace("_", " ").title()
+        self._attr_unique_id = f"irv_{peripheral.board}_{peripheral.name}_select"
+
+        self._attr_options = [
+            opt
+            for opt in (
+                peripheral.value00,
+                peripheral.value01,
+                peripheral.value10,
+                peripheral.value11,
+            )
+            if opt is not None
         ]
-
-        self._attr_name = "SG Ready režim"
-        self._attr_unique_id = "irv_sg_ready_select"
-        self.entity_id = "select.irv_sg_ready"
-
-        self._attr_options = list(SG_READY_MAP.values())
-        self._state = SG_READY_MAP["0:0"]
-
+        self._state = peripheral.value00
         self._restored = False
 
     @property
     def current_option(self):
         return self._state
 
-    async def async_select_option(self, option):
-        """User selected a new SG Ready mode."""
+    async def async_select_option(self, option: str):
         self._state = option
         self.async_write_ha_state()
 
-        # uložit stav entity
         await self.handler.publish(
-            topic=None,
-            payload=self._encode_state(option),
-            entity_id=self.entity_id,
+            self._mqtt_topic, option, retain=True, qos=2, entity_id=self.entity_id
         )
 
-        # poslat do Pico
-        await self._apply_mode(option)
-
-    async def _apply_mode(self, option):
-        """Convert selected option to relay commands."""
-        code = option.split(" ")[0]  # "0:0"
-        r1, r2 = code.split(":")
-
-        payload1 = "true" if r1 == "1" else "false"
-        payload2 = "true" if r2 == "1" else "false"
-
-        await self.handler.publish("control/mirosov/rele1", payload1, retain=True, qos=2)
-        await self.handler.publish("control/mirosov/rele2", payload2, retain=True, qos=2)
-
-    def update_from_relays(self, r1, r2):
-        """Update select state based on actual relay feedback."""
-        if self._restored:
-            return  # po startu ignorujeme MQTT
-
-        code = f"{1 if r1 else 0}:{1 if r2 else 0}"
-        self._state = SG_READY_MAP[code]
-        self.async_write_ha_state()
-
-    def set_restored_state(self, payload):
-        """Restore UI state after restart without sending MQTT."""
+    def set_restored_state(self, state):
+        """Restore UI state after an HA restart, without publishing to MQTT."""
         self._restored = True
-
-        # payload je např. "0:1"
-        if payload in SG_READY_MAP:
-            self._state = SG_READY_MAP[payload]
+        if state in self._attr_options:
+            self._state = state
             if self.hass:
                 self.async_write_ha_state()
 
-    def _encode_state(self, option):
-        """Convert full label back to '0:1' form."""
-        return option.split(" ")[0]
 
-
-
-# -----------------------------
-# SETUP ENTRY
-# -----------------------------
 async def async_setup_entry(hass, entry, async_add_entities):
-    handler = hass.data["irv"]["handler"]
-
-    sg_select = IRVSGReadySelect(handler)
-    handler.register_switch(None, None, sg_select)
-
-    async_add_entities([sg_select])
+    handler = hass.data[DOMAIN]["handler"]
+    handler.add_select_entities = async_add_entities
+    async_add_entities([])

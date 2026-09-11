@@ -22,9 +22,9 @@ class Logger:
         self.led = StatusLight()
         self.config = {}
     def prepare_log(self):
-        return {"version":self.version["version"],
-                "in":self.count_in,
-                "out":self.count_out}
+        return {"version":{"value":self.version["version"]},
+                "in":{"value":self.count_in,"unit":"msgs"},
+                "out":{"value":self.count_out,"unit":"msgs"}}
     def set_wdt(self,wdt):
         self.wdt = wdt
     def feed(self):
@@ -78,7 +78,7 @@ class Sonda:
         return temp
     def report(self):
         self.logger.print("Reporting temperature for",self.name)
-        return {self.name:str(self.get_temp())}
+        return {self.name:{"value":str(self.get_temp()),"unit":"°C"}}
     def command(self,topic,msg):
         pass
 class Bme280:
@@ -98,19 +98,21 @@ class Bme280:
         self.logger.print("Reporting BME280 data for",self.name,": Pressure")
         self.logger.print("Reporting BME280 data for",self.name,": Humidity")
         self.logger.print("Reporting BME280 data for",self.name,": Dew Point")
-        return {self.name+"/teplota":str(data[0]),
-                self.name+"/tlak":str(data[1]),
-                self.name+"/vlhkost":str(data[2]),
-                self.name+"/rosny_bod":str(data[3])}
+        return {self.name+"/teplota":{"value":str(data[0]),"unit":"°C"},
+                self.name+"/tlak":{"value":str(data[1]),"unit":"kPa"},
+                self.name+"/vlhkost":{"value":str(data[2]),"unit":"%"},
+                self.name+"/rosny_bod":{"value":str(data[3]),"unit":"°C"}}
     def command(self, topic, msg):
         pass
 class Rele:
-    def __init__(self, pin,name,logger,inverted=False):
+    def __init__(self, pin,name,logger,inverted=False,valueOn="1",valueOff="0"):
         self.logger = logger
         self.pin = Pin(pin,mode=Pin.OUT,pull=Pin.PULL_DOWN,value=0)
         self.name = name
         self.state = 0
         self.inverted = inverted
+        self.valueOn = valueOn
+        self.valueOff = valueOff
     def get_topic(self):
         return 'control/'+self.logger.name+"/"+self.name
     def get(self):
@@ -124,7 +126,8 @@ class Rele:
         self.state = state
     def report(self):
         self.logger.print("Reporting state for",self.name)
-        return {self.name:str(self.get())}
+        label = self.valueOn if self.get() else valueOff
+        return {self.name:{"value":str(self.get()),"label":label}}
     def command(self, topic, msg):
         if topic == 'control/'+self.logger.name+"/"+self.name:
             self.logger.print("RELE:"+topic+":"+msg)
@@ -133,18 +136,21 @@ class Rele:
             if "true" in msg:
                 self.set(1)
 class Ventil:
-    def __init__(self, pin,name,logger,inverted=False):
+    def __init__(self, pin,name,logger,inverted=False,valueOn="1",valueOff="0"):
         self.logger = logger
         self.pin = Pin(pin,mode=Pin.IN)
         self.name = name
         self.inverted = inverted
+        self.valueOn = valueOn
+        self.valueOff = valueOff
     def get(self):
         if self.inverted:
             return not self.pin.value()
         return bool(self.pin.value())
     def report(self):
+        label = self.valueOn if self.get() else self.valueOff
         self.logger.print("Reporting state for",self.name)
-        return {self.name:str(self.get())}
+        return {self.name:{"value":str(self.get()),"label":label}}
     def command(self, topic, msg):
         pass
 class KIT:
@@ -190,8 +196,58 @@ class KIT:
         return {}
     def command(self, topic, msg):
         pass
-    
+class SGReady:
+    def __init__(self, pin1, pin2,name,logger,inverted1=False, inverted2=False,value11="11",value00="00",value10="10",value01="01"):
+        self.logger = logger
+        self.pin1 = Pin(pin1,mode=Pin.OUT,pull=Pin.PULL_DOWN,value=0)
+        self.pin2 = Pin(pin2,mode=Pin.OUT,pull=Pin.PULL_DOWN,value=0)
+        self.name = name
+        self.state1 = 0
+        self.state2 = 0
+        self.inverted = inverted
+        self.value00 = value00
+        self.value01 = value01
+        self.value11 = value11
+        self.value10 = value10
+    def get_topic(self):
+        return 'control/'+self.logger.name+"/"+self.name
+    def get(self):
+        return (self.state1,self.state2)
+    def set(self,state1,state2):
+        self.logger.print(f"Switching {self.name} to {str(state1)}:{str(state2)}")
+        if not self.inverted1:
+            self.pin1.value(bool(state1))
+        else:
+            self.pin1.value(not state1)
+        if not self.inverted2:
+            self.pin2.value(bool(state2))
+        else:
+            self.pin2.value(not state2)
+        self.state1 = state1
+        self.state2 = state2
+    def report(self):
+        self.logger.print("Reporting state for",self.name)
+        if self.get() == (0,0):
+            label = self.value00
+        if self.get() == (0,1):
+            label = self.value01    
+        if self.get() == (1,1):
+            label = self.value11
+        if self.get() == (1,0):
+            label = self.value10
 
+        return {self.name:{"value":str(self.get()),"label":label}}
+    def command(self, topic, msg):
+        if topic == 'control/'+self.logger.name+"/"+self.name:
+            self.logger.print("SGREADY:"+topic+":"+msg)
+            if self.value00 in msg:
+                self.set(0,0) 
+            if self.value01 in msg:
+                self.set(0,1)
+            if self.value11 in msg:
+                self.set(1,1)
+            if self.value10 in msg:
+                self.set(1,0)
 
 
 def connect_best_wifi(logger,credentials,max_attempts=5):
@@ -236,12 +292,13 @@ def connect_best_wifi(logger,credentials,max_attempts=5):
 
 class MQTT:
     # MQTT connection with retry
-    def __init__(self,logger,credentials,callback,peripherals,topics_i,topics_o,max_attempts=5) -> None:
+    def __init__(self,logger,credentials,callback,peripherals,config,topics_i,topics_o,max_attempts=5) -> None:
         self.logger = logger
         self.topics_i = topics_i
         self.topics_o = topics_o
         self.peripherals = peripherals
         self.credentials = credentials
+        self.config = config
         self.logger.wdt.feed()
         for attempt in range(max_attempts):
             self.logger.wdt.feed()
@@ -317,4 +374,10 @@ class MQTT:
             self.logger.print("Failed to publish sleeping:", e)
     
     
-    
+    def discover():
+        payload = {}
+        payload.update({"PERIPHERALS":self.config["PERIPHERALS"]})
+        payload.update({"SETTINGS":self.config["SETTINGS"]})
+        payload.update({"VERSION":self.logger.version["version"]})
+        payload.update({"TOPICS":{"IN":self.topics_i,"OUT":self.topics_o}})
+        self.client.publish(self.topics_o["DISCOVER"], json.dumps(payload),retain=True,qos=2)

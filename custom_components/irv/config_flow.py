@@ -1,6 +1,6 @@
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
-from . import DOMAIN
+
+from .const import DOMAIN
 
 
 class IRVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

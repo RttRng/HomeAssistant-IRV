@@ -38,24 +38,31 @@ TOPIC_I_LIST = [x for x in TOPIC_I.values()]
 TOPIC_O = {"CHECK":b'status',
            "REPORT":name_base,
            "SLEEP":name_base+"/sleep",
-           "PING":b'ping'
+           "PING":b'ping',
+           "DISCOVER":'discover/'+name_base
            }
 
 peripherals = []
 name_base = config["MQTT"]["ID"]
 for p in config["PERIPHERALS"]:
     if p["TYPE"]=="RELE":
-        rele = Rele(pin=p["PIN"],name=p["NAME"],logger=logger,inverted=p["INVERTED"])
+        rele = Rele(pin=p["PIN"],name=p["NAME"],logger=logger,inverted=p["INVERTED"],valueOn=p["VALUEON"],valueOff=p["VALUEOFF"])
         peripherals.append(rele)
         TOPIC_I_LIST.append(bytes(rele.get_topic(),"utf-8"))
     if p["TYPE"]=="BME":
         peripherals.append(Bme280(sda=p["SDA_PIN"],scl=p["SCL_PIN"],logger=logger,name=p["NAME"]))
     if p["TYPE"]=="DHT":
         peripherals.append(Sonda(pin=p["PIN"],name=p["NAME"],logger=logger))
-    if p["TYPE"]=="BUTTON":
+    if p["TYPE"]=="VENTIL":
         peripherals.append(Ventil(pin=p["PIN"],name=p["NAME"],logger=logger,inverted=p["INVERTED"]))
     if p["TYPE"]=="KIT":
         peripherals.append(KIT(pins=p["PINS"],name=p["NAME"],logger=logger))
+    if p["TYPE"]=="SGREADY":
+        sgready = SGReady(pin1=p["PIN1"], pin2=p["PIN2"], name=p["NAME"] ,logger=logger,
+        inverted1=p["INVERTED1"], inverted2=p["INVERTED2"],value11=p["VALUE11"],value00=p["VALUE00"],value10=p["VALUE10"],value01=p["VALUE01"])
+        peripherals.append(sgready)
+        TOPIC_I_LIST.append(bytes(sgready.get_topic(),"utf-8"))
+
 logger.print(f"Initialized {len(peripherals)} peripherals: {[p.name for p in peripherals]}")
 
 def mqtt_callback(topic, msg):
@@ -90,8 +97,9 @@ def main_common():
         connect_best_wifi(logger=logger,credentials=config["WIFI"],max_attempts=5)
         logger.print("Update?")
         logger.print(pull.update(version,config,logger))
-        mqtt = MQTT(logger=logger,credentials=config["MQTT"],callback=mqtt_callback,peripherals=peripherals,topics_o=TOPIC_O,topics_i=TOPIC_I,max_attempts=5)
+        mqtt = MQTT(logger=logger,credentials=config["MQTT"],callback=mqtt_callback,peripherals=peripherals,config=config,topics_o=TOPIC_O,topics_i=TOPIC_I,max_attempts=5)
         mqtt.subscribe_list(TOPIC_I_LIST)
+        mqtt.discover()
     except Exception as e:
         logger.print("Startup error:", e)
 
