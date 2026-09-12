@@ -52,6 +52,36 @@ class IRVSensor(SensorEntity):
         self.async_write_ha_state()
 
 
+class IRVRawStateSensor(SensorEntity):
+    """Raw 'X:Y' state string for SGReady, meant for use in automations.
+
+    Kept separate from IRVLabelSensor (which shows the human label) so
+    automations have a stable, hardcoded-format value to match against
+    regardless of what labels get renamed to later.
+    """
+
+    def __init__(self, handler, peripheral: Peripheral, device_info):
+        self.handler = handler
+        self.peripheral = peripheral
+
+        self._attr_device_info = device_info
+        self._attr_has_entity_name = True
+        self._attr_name = f"{_friendly(peripheral.name)} Raw State"
+        self._attr_unique_id = f"irv_{peripheral.board}_{peripheral.name}_raw"
+
+        self._state = None
+
+    @property
+    def native_value(self):
+        return self._state
+
+    def update_value(self, raw_state):
+        if self.hass is None:
+            return
+        self._state = raw_state
+        self.async_write_ha_state()
+
+
 class IRVLabelSensor(SensorEntity):
     """Text sensor showing a binary/SGReady peripheral's actual state as a label."""
 

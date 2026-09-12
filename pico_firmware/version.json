@@ -1,5 +1,5 @@
 {
-    "version":"3.9.0",
-    "stable":false,
-    "tested":false
+    "version":"3.9.2",
+    "stable":true,
+    "tested":true
 }

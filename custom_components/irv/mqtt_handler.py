@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from homeassistant.components import mqtt
 from homeassistant.helpers.entity import DeviceInfo
@@ -36,6 +37,23 @@ def _decode(payload) -> str:
     if isinstance(payload, bytes):
         return payload.decode("utf-8")
     return payload
+
+
+def _sgready_raw_state(value) -> str:
+    """Normalize an SGReady 'value' field into a hardcoded 'X:Y' string.
+
+    The MCU currently sends the pair as a Python tuple-repr string, e.g.
+    "(0, 0)". This extracts the two numbers regardless of that formatting
+    (also tolerates a future firmware change that sends "0:0" directly).
+    """
+    if isinstance(value, (list, tuple)) and len(value) == 2:
+        return f"{value[0]}:{value[1]}"
+    if isinstance(value, str):
+        nums = re.findall(r"-?\d+", value)
+        if len(nums) >= 2:
+            return f"{nums[0]}:{nums[1]}"
+        return value
+    return str(value)
 
 
 def _parse_bool(value) -> bool:
@@ -218,7 +236,7 @@ class IRVMQTTHandler:
         self.add_binary_sensor_entities([ent])
 
     def _create_entities_for(self, board: str, peripherals: list[Peripheral], device_info: DeviceInfo):
-        from .sensor import IRVSensor, IRVLabelSensor
+        from .sensor import IRVSensor, IRVLabelSensor, IRVRawStateSensor
         from .binary_sensor import IRVBinarySensor
         from .switch import IRVSwitch
         from .select import IRVSGReadySelect
@@ -257,6 +275,10 @@ class IRVMQTTHandler:
                 label_ent = IRVLabelSensor(self, p, device_info)
                 self._register_entity(p, "label_sensor", label_ent)
                 sensors.append(label_ent)
+
+                raw_ent = IRVRawStateSensor(self, p, device_info)
+                self._register_entity(p, "raw_sensor", raw_ent)
+                sensors.append(raw_ent)
 
             else:
                 _LOGGER.warning("IRV: no entity mapping for peripheral type '%s' (%s/%s)", p.ptype, board, p.name)
@@ -301,6 +323,10 @@ class IRVMQTTHandler:
                 label_ent = ents.get("label_sensor")
                 if label_ent:
                     label_ent.update_value(label)
+
+                raw_ent = ents.get("raw_sensor")
+                if raw_ent:
+                    raw_ent.update_value(_sgready_raw_state(value))
             else:
                 sensor_ent = ents.get("sensor")
                 if sensor_ent:

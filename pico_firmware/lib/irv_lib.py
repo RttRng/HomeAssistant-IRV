@@ -78,7 +78,7 @@ class Sonda:
         return temp
     def report(self):
         self.logger.print("Reporting temperature for",self.name)
-        return {self.name:{"value":str(self.get_temp()),"unit":"°C"}}
+        return {self.name:{"value":str(self.get_temp()),"unit":"C"}}
     def command(self,topic,msg):
         pass
 class Bme280:
@@ -98,10 +98,10 @@ class Bme280:
         self.logger.print("Reporting BME280 data for",self.name,": Pressure")
         self.logger.print("Reporting BME280 data for",self.name,": Humidity")
         self.logger.print("Reporting BME280 data for",self.name,": Dew Point")
-        return {self.name+"/teplota":{"value":str(data[0]),"unit":"°C"},
+        return {self.name+"/teplota":{"value":str(data[0]),"unit":"C"},
                 self.name+"/tlak":{"value":str(data[1]),"unit":"kPa"},
                 self.name+"/vlhkost":{"value":str(data[2]),"unit":"%"},
-                self.name+"/rosny_bod":{"value":str(data[3]),"unit":"°C"}}
+                self.name+"/rosny_bod":{"value":str(data[3]),"unit":"C"}}
     def command(self, topic, msg):
         pass
 class Rele:
