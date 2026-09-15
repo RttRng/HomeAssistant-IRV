@@ -1,15 +1,7 @@
 from irv_lib import *
 import pull
 wdt = FakeWDT()
-try:
-    # This fill throw exception if run from terminal
-    if(isinstance(logger,Logger)):
-        pass
-    else:
-        raise Exception("not declared in boot")
-except:
-    # Enable messages in terminal
-    logger = Logger(True)
+logger = Logger(True)
 
 
 identity = get_id()
@@ -100,6 +92,11 @@ def main_common():
         mqtt = MQTT(logger=logger,credentials=config["MQTT"],callback=mqtt_callback,peripherals=peripherals,config=config,topics_o=TOPIC_O,topics_i=TOPIC_I,max_attempts=5)
         mqtt.subscribe_list(TOPIC_I_LIST)
         mqtt.discover()
+        try:
+            with open("crash_count.json", "w") as f:
+                json.dump({"count": 0}, f)
+        except OSError:
+            pass
     except Exception as e:
         logger.print("Startup error:", e)
 

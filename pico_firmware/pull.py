@@ -1,4 +1,13 @@
-def update(version,config,logger):
+def _channel(config):
+    settings = config["SETTINGS"]
+    if settings["CHANNEL"] == "unstable":
+        return "unstable"
+    if settings["CHANNEL"] == "stable":
+        return "stable"
+    return "tested"
+
+
+def update(version, config, logger):
     try:
         logger.wdt.feed()
         import urequests
@@ -6,65 +15,103 @@ def update(version,config,logger):
             key = f.read().strip()
         with open("base_url.txt", "r") as f:
             base_url = f.read().strip()
-        url = base_url+"version.json"
+
+        channel = _channel(config)
+        channel_url = base_url + channel + "/"
         headers = {"X-API-KEY": key}
+
         logger.wdt.feed()
-        response = urequests.get(url, headers=headers)
-        new_version = {}
-        if response.status_code == 200:
-            new_version = response.json()
-            logger.print("Version fetched!")
-        else:
+        response = urequests.get(channel_url + "version.json", headers=headers)
+        if response.status_code == 503:
+            response.close()
+            return "Release not ready, skipping"
+        if response.status_code != 200:
             response.close()
             return "Failed to fetch version: " + str(response.status_code)
+        new_version = response.json()
         response.close()
         logger.print("Version:", new_version)
-        use_untested = config["SETTINGS"]["USE_UNTESTED"]
-        use_unstable = config["SETTINGS"]["USE_UNSTABLE"]
-        if not use_untested and not new_version["tested"]:
-            return "Untested version"
-        if not use_unstable and not new_version["stable"]:
-            return "Unstable version"
+
         if new_version["version"] == version["version"]:
             return "Already at this version, skipping"
-        
-        url = base_url+"manifest.json"
-        headers = {"X-API-KEY": key}
+
         logger.wdt.feed()
-        response = urequests.get(url, headers=headers)
-        manifest = {}
-        if response.status_code == 200:
-            manifest = response.json()
-            logger.print("Manifest fetched!")
-        else:
+        response = urequests.get(channel_url + "manifest.json", headers=headers)
+        if response.status_code == 503:
+            response.close()
+            return "Release not ready, skipping"
+        if response.status_code != 200:
             response.close()
             return "Failed to fetch manifest: " + str(response.status_code)
+        manifest = response.json()
         response.close()
-        print("Manifest:", manifest)
+        logger.print("Manifest fetched!")
+
         import os
-        dirs = manifest["dirs"]
-        logger.wdt.feed()
-        for dir in dirs:
+        for dir in manifest["dirs"]:
+            logger.wdt.feed()
             try:
                 os.mkdir(dir)
             except OSError as e:
-                if e.args[0] == 17:  # EEXIST
-                    pass
-                else:
+                if e.args[0] != 17:  # not EEXIST
                     return "Failed to create directory: " + dir
-        logger.wdt.feed()
+
+        version_file_info = None
         for file_info in manifest["files"]:
             name = file_info["name"]
             path = file_info["path"]
-            logger.print("Downloading", name, "to", "/"+path) 
+
+            # version.json is committed last, only once everything else
+            # has succeeded - see below.
+            if path == "" and name == "version.json":
+                version_file_info = file_info
+                continue
+
+            dest = "/" + path + name
+            tmp = dest + ".part"
+
+            logger.print("Downloading", name, "to", dest)
             logger.wdt.feed()
-            resp = urequests.get(base_url+path+name, headers=headers)
+            resp = urequests.get(channel_url + path + name, headers=headers)
             if resp.status_code != 200:
                 resp.close()
                 return "Failed to download file: " + name + " " + str(resp.status_code)
-            with open("/"+path+name, "w") as f:
+
+            with open(tmp, "wb") as f:
                 f.write(resp.content)
             resp.close()
+            os.rename(tmp, dest)
+
+        if version_file_info is None:
+            return "Manifest missing version.json entry"
+
+        # Fetch + verify version.json last. Only once this is written does
+        # the board consider itself "on" the new version - so a failure
+        # anywhere above leaves the board's local version.json untouched,
+        # and the next boot will retry the same update instead of thinking
+        # it's already done.
+        logger.wdt.feed()
+        resp = urequests.get(channel_url + "version.json", headers=headers)
+        if resp.status_code != 200:
+            resp.close()
+            return "Failed to re-fetch version.json: " + str(resp.status_code)
+        raw = resp.content
+        resp.close()
+
+        try:
+            import json
+            confirmed = json.loads(raw)
+        except Exception as e:
+            return "version.json fetched but invalid JSON: " + str(e)
+
+        if confirmed["version"] != new_version["version"]:
+            return "version.json changed mid-update, aborting (server moved on?)"
+
+        with open("/version.json.part", "wb") as f:
+            f.write(raw)
+        import os
+        os.rename("/version.json.part", "/version.json")
+
         logger.print("Update completed successfully!")
         import machine
         machine.reset()

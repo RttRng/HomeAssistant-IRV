@@ -14,10 +14,7 @@
     {"name":"config.json","path":"branches/test/"},
     {"name":"pull.py","path":""},
     {"name":"main.py","path":""},
-    {"name":"boot.py","path":""},
-    {"name":"version.json","path":""}
-
-    
+    {"name":"boot.py","path":""}
 ],
  "dirs":["lib","lib/umqtt","branches","branches/borek","branches/kotel","branches/obyvak","branches/koupelna","branches/mirosov","branches/test"]
 }
