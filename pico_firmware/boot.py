@@ -1,5 +1,25 @@
 import json
-from log_lib import Logger
+import os
+
+def _debug_flag_present():
+    try:
+        os.stat("debug.flag")
+        return True
+    except OSError:
+        return False
+
+DEBUG = _debug_flag_present()
+if DEBUG:
+    pass
+else:
+    from log_lib import Logger
+    logger = Logger(True)
+    logger.print("Initializing WDT")
+    logger.set_wdt(WDT(timeout=config["SETTINGS"]["WDT_TIMEOUT"]))
+
+
+
+
 
 def _read_crash_count():
     try:
@@ -15,7 +35,6 @@ def _write_crash_count(n):
     except OSError:
         pass
 
-logger = Logger()
 
 CRASH_THRESHOLD = 3
 MAX_TRACKED_CRASHES = 20

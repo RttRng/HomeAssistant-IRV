@@ -1,18 +1,23 @@
 from irv_lib import *
 import pull
-wdt = FakeWDT()
-logger = Logger(True)
-
 
 identity = get_id()
 config = read_json(f"/branches/{identity}/config.json")
+
+settings_config = read_json("settings_config.json")
 wifi_config = read_json("wifi.json")
 mqtt_config = read_json("mqtt.json")
 version = read_json("version.json")
 logger.print("Version:",version["version"],"" if version["tested"] else "untested","" if version["stable"] else "unstable")
 logger.print("Identity:",identity)
+wifi_config.update(config["WIFI"])
+mqtt_config.update(config["MQTT"])
+settings_config.update(config["SETTINGS"])
+# Should overwrite the general files with board specific settings if present
 config["WIFI"].update(wifi_config)
 config["MQTT"].update(mqtt_config)
+config["SETTINGS"].update(settings_config)
+
 logger.version = version
 logger.name = config["MQTT"]["ID"]
 logger.config = config
@@ -24,12 +29,12 @@ TOPIC_I = {"CHECK":b'check',
            "CONTROL":b'control',
            "DATA":b'give',
            "RESET":b'reset',
-           "PONG":b'pong'
+           "PONG":b'pong',
+           "UNDEBUG":b'undebug'
            }
 TOPIC_I_LIST = [x for x in TOPIC_I.values()]
 TOPIC_O = {"CHECK":b'status',
            "REPORT":name_base,
-           "SLEEP":name_base+"/sleep",
            "PING":b'ping',
            "DISCOVER":'discovery/'+name_base
            }
@@ -76,29 +81,23 @@ def mqtt_callback(topic, msg):
         elif topic == TOPIC_I["PONG"] and msg_me:
             global got_ping
             got_ping = True
-    
+        elif topic == TOPIC_I["UNDEBUG"] and msg_me:
+            try:
+                os.stat("debug.flag")
+                os.remove("debug.flag")
+                logger.print("reset command")
+                try:
+                    mqtt.client.publish(b"reseting/command",logger.name.encode())
+                    sleep(3)
+                finally:
+                    reset()
+            except OSError:
+                pass
+
         else:
             for p in peripherals:
                 p.command(topic.decode(),msg.decode())
 
-def main_common():
-    try:
-        global mqtt
-        logger.wdt.feed()
-        logger.led.on()
-        connect_best_wifi(logger=logger,credentials=config["WIFI"],max_attempts=5)
-        logger.print("Update?")
-        logger.print(pull.update(version,config,logger))
-        mqtt = MQTT(logger=logger,credentials=config["MQTT"],callback=mqtt_callback,peripherals=peripherals,config=config,topics_o=TOPIC_O,topics_i=TOPIC_I,max_attempts=5)
-        mqtt.subscribe_list(TOPIC_I_LIST)
-        mqtt.discover()
-        try:
-            with open("crash_count.json", "w") as f:
-                json.dump({"count": 0}, f)
-        except OSError:
-            pass
-    except Exception as e:
-        logger.print("Startup error:", e)
 
 def cb_reset(timer):
     global mqtt
@@ -127,6 +126,24 @@ def ping(timer):
 # Main loop
 def main_loop():
     try:
+        global mqtt
+        logger.wdt.feed()
+        logger.led.on()
+        connect_best_wifi(logger=logger,credentials=config["WIFI"],max_attempts=5)
+        logger.print("Update?")
+        logger.print(pull.update(version,config))
+        mqtt = MQTT(logger=logger,credentials=config["MQTT"],callback=mqtt_callback,peripherals=peripherals,config=config,topics_o=TOPIC_O,topics_i=TOPIC_I,max_attempts=5)
+        mqtt.subscribe_list(TOPIC_I_LIST)
+        mqtt.discover()
+        try:
+            with open("crash_count.json", "w") as f:
+                json.dump({"count": 0}, f)
+        except OSError:
+            pass
+    except Exception as e:
+        logger.print("Startup error:", e)
+
+    try:
         global mqtt, got_ping
         timer_send = Timer()
         timer_send.init(period=config["SETTINGS"]["PERIODIC_SEND_MS"], mode=Timer.PERIODIC, callback=mqtt.report_state)
@@ -153,75 +170,19 @@ def main_loop():
                 sleep(5)
     except Exception as e:
         logger.print("Loop error:", e)
-def main_lite():
-    try:
-        global mqtt
-        mqtt.report_state(None)
-        logger.wdt.feed()
-        logger.led.off()
-        logger.print("Entering lite loop")
-        mqtt.wake()
-        loops_remaining = 5
-        while loops_remaining>0:
-            logger.print("Loops remaining:",loops_remaining)
-            loops_remaining -= 1
-            try:
-                logger.wdt.feed()
-                logger.print("Checking for MQTT message...")
-                mqtt.client.check_msg()
-                wdt.feed()
-                sleep(3)
-            except Exception as e:
-                logger.print("Error during lite:", e)
-                sleep(5)
-        mqtt.sleep()
-    except Exception as e:
-        logger.print("Loop error:", e)
     
 
 sleep(1)
 logger.led.off()
-logger.print("Waiting for keyboard interupt")
-sleep(4)
-battery = config["SETTINGS"]["BATTERY"]
-logger.print("Initializing WDT")
-if battery:
-    if read_json("sleep.json")["sleep"]:
-        logger.print("Sleep is true, going to sleep")
-        write_json("sleep.json",{"sleep":False})
-        deepsleep(900000)
-        reset()
-
-
-
-if not logger.debug:
-    logger.print("real WDT enabled")
-    logger.set_wdt(WDT(timeout=config["SETTINGS"]["WDT_TIMEOUT"]))
-logger.print("Running on battery" if battery else "Running from cable")
 mqtt = None
-main_common()
-if battery:
-    main_lite()
-    logger.print("going to sleep")
-    # sleep for 15 mins
-    write_json("sleep.json",{"sleep":True})
-    try:
-        mqtt.client.publish(b"reseting/lite",logger.name.encode())
-    except:
-        pass
-    logger.print("reseting")
-    if not logger.debug:
-        sleep(5)
-        reset()
-else:
-    main_loop()
-    logger.print("reseting")
-    try:
-        mqtt.client.publish(b"reseting/loop",logger.name.encode())
-        sleep(3)
+main_loop()
+logger.print("reseting")
+try:
+    mqtt.client.publish(b"reseting/loop",logger.name.encode())
+    sleep(3)
 
-    except:
-        pass
-    if not logger.debug:
-        sleep(5)
-        reset()
+except:
+    pass
+if not logger.debug:
+    sleep(5)
+    reset()

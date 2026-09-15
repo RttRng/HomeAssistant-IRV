@@ -4,6 +4,7 @@
     {"name":"sleep.json","path":""},
     {"name":"bme280_float.py","path":"lib/"},
     {"name":"irv_lib.py","path":"lib/"},
+    {"name":"log_lib.py","path":"lib/"},
     {"name":"simple.mpy","path":"lib/umqtt/"},
     {"name":"robust.mpy","path":"lib/umqtt/"},
     {"name":"config.json","path":"branches/borek/"},
@@ -14,6 +15,7 @@
     {"name":"config.json","path":"branches/test/"},
     {"name":"pull.py","path":""},
     {"name":"main.py","path":""},
+    {"name":"rescue.py","path":""},
     {"name":"boot.py","path":""}
 ],
  "dirs":["lib","lib/umqtt","branches","branches/borek","branches/kotel","branches/obyvak","branches/koupelna","branches/mirosov","branches/test"]

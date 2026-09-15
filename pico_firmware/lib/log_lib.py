@@ -1,5 +1,5 @@
 class Logger:
-    def __init__(self,debug:bool) -> None:
+    def __init__(self,debug=True) -> None:
         self.debug = debug
         self.count_in = 0
         self.count_out = 0
@@ -9,9 +9,15 @@ class Logger:
         self.led = StatusLight()
         self.config = {}
     def prepare_log(self):
-        return {"version":{"value":self.version["version"]},
-                "in":{"value":self.count_in,"unit":"msgs"},
-                "out":{"value":self.count_out,"unit":"msgs"}}
+        try:
+            os.stat("debug.flag")
+            return {"version":{"value":"DEBUG - "+self.version["version"]},
+                    "in":{"value":self.count_in,"unit":"msgs"},
+                    "out":{"value":self.count_out,"unit":"msgs"}}
+        except OSError:
+            return {"version":{"value":self.version["version"]},
+                    "in":{"value":self.count_in,"unit":"msgs"},
+                    "out":{"value":self.count_out,"unit":"msgs"}}
     def set_wdt(self,wdt):
         self.wdt = wdt
     def feed(self):
