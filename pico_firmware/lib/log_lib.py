@@ -1,3 +1,4 @@
+from machine import Pin
 class Logger:
     def __init__(self,debug=True) -> None:
         self.debug = debug

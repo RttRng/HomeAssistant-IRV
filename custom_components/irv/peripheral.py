@@ -13,10 +13,10 @@ from .const import (
     IMPLICIT_SENSORS,
     TYPE_BME,
     TYPE_DHT,
-    TYPE_RELE,
+    TYPE_SWITCH,
     TYPE_SENSOR,
     TYPE_SGREADY,
-    TYPE_VENTIL,
+    TYPE_BINARYSENSOR,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ def parse_discovery_payload(board: str, data: dict) -> list[Peripheral]:
             peripherals.append(_sensor(board, name, None))
             continue
 
-        if ptype in (TYPE_RELE, TYPE_VENTIL):
+        if ptype in (TYPE_SWITCH, TYPE_BINARYSENSOR):
             peripherals.append(
                 Peripheral(
                     board=board,

@@ -36,18 +36,18 @@ def board_from_discovery_topic(topic: str) -> str | None:
 # PERIPHERAL TYPES (as they appear in the discovery payload's TYPE field)
 # -----------------------------------------------------------------------
 
-TYPE_RELE = "RELE"
-TYPE_VENTIL = "VENTIL"
+TYPE_SWITCH = "SWITCH"
+TYPE_BINARYSENSOR = "BINARYSENSOR"
 TYPE_SGREADY = "SGREADY"
 TYPE_DHT = "DHT"
-TYPE_BME = "BME"
+TYPE_BME = "BME280"
 
 # Internal type used for anything that is "just a plain sensor"
 # (DHT peripherals, expanded BME sub-sensors, and the implicit debug sensors)
 TYPE_SENSOR = "SENSOR"
 
 # Peripheral types that get a Switch + BinarySensor(actual) + label Sensor(actual)
-BINARY_TYPES = (TYPE_RELE, TYPE_VENTIL)
+BINARY_TYPES = (TYPE_SWITCH, TYPE_BINARYSENSOR)
 
 # -----------------------------------------------------------------------
 # BME280 expansion: one discovered BME peripheral fans out into 4 sensors

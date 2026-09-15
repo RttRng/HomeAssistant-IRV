@@ -1,5 +1,6 @@
 import json
 import os
+from machine import WDT
 
 def _debug_flag_present():
     try:
@@ -14,14 +15,8 @@ try:
 except:
     class Logger:
         def __init__(self,debug=True) -> None:
+            self.wdt = None
             self.debug = debug
-            self.count_in = 0
-            self.count_out = 0
-            self.name = "unknown"
-            self.version = {"version":"unknown"}
-            self.wdt = FakeWDT()
-            self.led = StatusLight()
-            self.config = {}
         def set_wdt(self,wdt):
             self.wdt = wdt
         def feed(self):

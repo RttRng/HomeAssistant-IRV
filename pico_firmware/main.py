@@ -42,16 +42,16 @@ TOPIC_O = {"CHECK":b'status',
 peripherals = []
 name_base = config["MQTT"]["ID"]
 for p in config["PERIPHERALS"]:
-    if p["TYPE"]=="RELE":
-        rele = Rele(pin=p["PIN"],name=p["NAME"],logger=logger,inverted=p["INVERTED"],valueOn=p["VALUEON"],valueOff=p["VALUEOFF"])
-        peripherals.append(rele)
+    if p["TYPE"]=="SWITCH":
+        sw = Switch(pin=p["PIN"],name=p["NAME"],logger=logger,inverted=p["INVERTED"],valueOn=p["VALUEON"],valueOff=p["VALUEOFF"])
+        peripherals.append(sw)
         TOPIC_I_LIST.append(bytes(rele.get_topic(),"utf-8"))
-    if p["TYPE"]=="BME":
+    if p["TYPE"]=="BME280":
         peripherals.append(Bme280(sda=p["SDA_PIN"],scl=p["SCL_PIN"],logger=logger,name=p["NAME"]))
     if p["TYPE"]=="DHT":
-        peripherals.append(Sonda(pin=p["PIN"],name=p["NAME"],logger=logger))
-    if p["TYPE"]=="VENTIL":
-        peripherals.append(Ventil(pin=p["PIN"], name=p["NAME"], logger=logger, inverted=p["INVERTED"], valueOn=p["VALUEON"],valueOff=p["VALUEOFF"]))
+        peripherals.append(DHT(pin=p["PIN"],name=p["NAME"],logger=logger))
+    if p["TYPE"]=="BINARYSENSOR":
+        peripherals.append(BinarySensor(pin=p["PIN"], name=p["NAME"], logger=logger, inverted=p["INVERTED"], valueOn=p["VALUEON"],valueOff=p["VALUEOFF"]))
     if p["TYPE"]=="KIT":
         peripherals.append(KIT(pins=p["PINS"],name=p["NAME"],logger=logger))
     if p["TYPE"]=="SGREADY":
@@ -150,7 +150,7 @@ def main_loop():
         timer_sub = Timer()
         timer_sub.init(period=config["SETTINGS"]["PERIODIC_SUBSCRIBE_MS"], mode=Timer.PERIODIC, callback=cb_sub)
         timer_ping = Timer()
-        timer_ping.init(period=60000,mode=Timer.PERIODIC,callback=ping)
+        timer_ping.init(period=config["SETTINGS"]["PERIODIC_PING_MS"],mode=Timer.PERIODIC,callback=ping)
         mqtt.report_state(timer_send)
         logger.wdt.feed()
         logger.led.off()

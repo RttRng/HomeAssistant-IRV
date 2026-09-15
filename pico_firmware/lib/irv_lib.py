@@ -21,7 +21,7 @@ def get_id():
     with open("identity.txt","r") as f:
         return f.read().strip()
 
-class Sonda:
+class DHT:
     def __init__(self, pin,name,logger):
         self.logger = logger
         self.name = name
@@ -64,7 +64,7 @@ class Bme280:
                 self.name+"/rosny_bod":{"value":str(data[3]),"unit":"C"}}
     def command(self, topic, msg):
         pass
-class Rele:
+class Switch:
     def __init__(self, pin,name,logger,inverted=False,valueOn="1",valueOff="0"):
         self.logger = logger
         self.pin = Pin(pin,mode=Pin.OUT,pull=Pin.PULL_DOWN,value=0)
@@ -95,7 +95,7 @@ class Rele:
                 self.set(0)
             if "true" in msg:
                 self.set(1)
-class Ventil:
+class BinarySensor:
     def __init__(self, pin,name,logger,inverted=False,valueOn="1",valueOff="0"):
         self.logger = logger
         self.pin = Pin(pin,mode=Pin.IN)
@@ -319,21 +319,7 @@ class MQTT:
         except Exception as e:
             self.logger.print("Failed to publish state:", e)
         self.logger.wdt.feed()
-    def wake(self):
-        try:
-            self.logger.increment_out()
-            self.client.publish(self.topics_o["SLEEP"], json.dumps({"sleep":"0"}))
-            self.logger.print(f"Sent waking state")
-        except Exception as e:
-            self.logger.print("Failed to publish waking:", e)
-    def sleep(self):
-        try:
-            self.logger.increment_out()
-            self.client.publish(self.topics_o["SLEEP"], json.dumps({"sleep":"1"}))
-            self.logger.print(f"Sent sleeping state")
-        except Exception as e:
-            self.logger.print("Failed to publish sleeping:", e)
-    
+  
     
     def discover(self):
         payload = {}
