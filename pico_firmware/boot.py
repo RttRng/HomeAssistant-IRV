@@ -1,6 +1,8 @@
 import json
 import os
 from machine import WDT
+from crash_lib import *
+
 
 def _debug_flag_present():
     try:
@@ -11,46 +13,23 @@ def _debug_flag_present():
 
 try:
     from log_lib import Logger
-    logger = Logger(True)
+    logger = Logger()
 except:
     class Logger:
-        def __init__(self,debug=True) -> None:
+        def __init__(self) -> None:
             self.wdt = None
-            self.debug = debug
         def set_wdt(self,wdt):
             self.wdt = wdt
         def feed(self):
             self.wdt.feed()
         def print(self,*args, end="\n"):
-            if self.debug:
-                print(*args, end=end)
-    logger = Logger(True)
+            print(*args, end=end)
+    logger = Logger()
 
 DEBUG = _debug_flag_present()
-if DEBUG:
-    pass
-else:
+if not DEBUG:
     logger.print("Initializing WDT")
     logger.set_wdt(WDT(timeout=8000))
-
-
-
-
-
-def _read_crash_count():
-    try:
-        with open("crash_count.json", "r") as f:
-            return json.load(f).get("count", 0)
-    except (OSError, ValueError):
-        return 0
-
-def _write_crash_count(n):
-    try:
-        with open("crash_count.json", "w") as f:
-            json.dump({"count": n}, f)
-    except OSError:
-        pass
-
 
 CRASH_THRESHOLD = 3
 MAX_TRACKED_CRASHES = 20
@@ -63,12 +42,11 @@ if crash_count >= CRASH_THRESHOLD:
 else:
     try:
         import main
-        _write_crash_count(crash_count + 1)
-        print("main.py returned unexpectedly, treating as failure")
-        import rescue
-        rescue.run(logger,reason="main_returned")
+        reason, error = "main_returned", ""
     except Exception as e:
+        reason, error = "exception", e
+    finally:
         _write_crash_count(crash_count + 1)
-        print("main.py crashed:", e)
-        import rescue
-        rescue.run(logger,reason="exception", error=e)
+
+    print("main.py ended:", reason, error)
+    rescue.run(logger, reason=reason, error=error)

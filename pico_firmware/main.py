@@ -4,7 +4,7 @@ from irv_lib import *
 identity = get_id()
 config = read_json(f"/branches/{identity}/config.json")
 
-settings_config = read_json("settings_config.json")
+settings_config = read_json("settings.json")
 wifi_config = read_json("wifi.json")
 mqtt_config = read_json("mqtt.json")
 version = read_json("version.json")
@@ -45,7 +45,7 @@ for p in config["PERIPHERALS"]:
     if p["TYPE"]=="SWITCH":
         sw = Switch(pin=p["PIN"],name=p["NAME"],logger=logger,inverted=p["INVERTED"],valueOn=p["VALUEON"],valueOff=p["VALUEOFF"])
         peripherals.append(sw)
-        TOPIC_I_LIST.append(bytes(rele.get_topic(),"utf-8"))
+        TOPIC_I_LIST.append(bytes(sw.get_topic(),"utf-8"))
     if p["TYPE"]=="BME280":
         peripherals.append(Bme280(sda=p["SDA_PIN"],scl=p["SCL_PIN"],logger=logger,name=p["NAME"]))
     if p["TYPE"]=="DHT":
@@ -125,49 +125,41 @@ def ping(timer):
 
 # Main loop
 def main_loop():
-    try:
-        global mqtt
-        logger.wdt.feed()
-        logger.led.on()
-        connect_best_wifi(logger=logger,credentials=config["WIFI"],max_attempts=5)
-        mqtt = MQTT(logger=logger,credentials=config["MQTT"],callback=mqtt_callback,peripherals=peripherals,config=config,topics_o=TOPIC_O,topics_i=TOPIC_I,max_attempts=5)
-        mqtt.subscribe_list(TOPIC_I_LIST)
-        mqtt.discover()
-        try:
-            with open("crash_count.json", "w") as f:
-                json.dump({"count": 0}, f)
-        except OSError:
-            pass
-    except Exception as e:
-        logger.print("Startup error:", e)
+    
+    global mqtt
+    logger.wdt.feed()
+    logger.led.on()
+    connect_best_wifi(logger=logger,credentials=config["WIFI"],max_attempts=5)
+    mqtt = MQTT(logger=logger,credentials=config["MQTT"],callback=mqtt_callback,peripherals=peripherals,config=config,topics_o=TOPIC_O,topics_i=TOPIC_I,max_attempts=5)
+    mqtt.subscribe_list(TOPIC_I_LIST)
+    mqtt.discover()
+    
 
-    try:
-        global mqtt, got_ping
-        timer_send = Timer()
-        timer_send.init(period=config["SETTINGS"]["PERIODIC_SEND_MS"], mode=Timer.PERIODIC, callback=mqtt.report_state)
-        timer_reset = Timer()
-        timer_reset.init(period=config["SETTINGS"]["PERIODIC_RESET_MS"], mode=Timer.PERIODIC, callback=cb_reset)
-        timer_sub = Timer()
-        timer_sub.init(period=config["SETTINGS"]["PERIODIC_SUBSCRIBE_MS"], mode=Timer.PERIODIC, callback=cb_sub)
-        timer_ping = Timer()
-        timer_ping.init(period=config["SETTINGS"]["PERIODIC_PING_MS"],mode=Timer.PERIODIC,callback=ping)
-        mqtt.report_state(timer_send)
-        logger.wdt.feed()
-        logger.led.off()
-        logger.print("Entering main loop")
-        while True:
-            try:
-                logger.wdt.feed()
-                logger.print("Checking for MQTT message...")
-                mqtt.client.check_msg()
-                gc.collect()
-                logger.wdt.feed()
-                sleep(3)
-            except Exception as e:
-                logger.print("Error during loop:", e)
-                sleep(5)
-    except Exception as e:
-        logger.print("Loop error:", e)
+    global mqtt, got_ping
+    timer_send = Timer()
+    timer_send.init(period=config["SETTINGS"]["PERIODIC_SEND_MS"], mode=Timer.PERIODIC, callback=mqtt.report_state)
+    timer_reset = Timer()
+    timer_reset.init(period=config["SETTINGS"]["PERIODIC_RESET_MS"], mode=Timer.PERIODIC, callback=cb_reset)
+    timer_sub = Timer()
+    timer_sub.init(period=config["SETTINGS"]["PERIODIC_SUBSCRIBE_MS"], mode=Timer.PERIODIC, callback=cb_sub)
+    timer_ping = Timer()
+    timer_ping.init(period=config["SETTINGS"]["PERIODIC_PING_MS"],mode=Timer.PERIODIC,callback=ping)
+    mqtt.report_state(timer_send)
+    logger.wdt.feed()
+    logger.led.off()
+    logger.print("Entering main loop")
+    while True:
+        try:
+            logger.wdt.feed()
+            logger.print("Checking for MQTT message...")
+            mqtt.client.check_msg()
+            gc.collect()
+            logger.wdt.feed()
+            sleep(3)
+        except Exception as e:
+            logger.print("Error during loop:", e)
+            sleep(5)
+
     
 
 sleep(1)
@@ -178,9 +170,5 @@ logger.print("reseting")
 try:
     mqtt.client.publish(b"reseting/loop",logger.name.encode())
     sleep(3)
-
 except:
     pass
-if not logger.debug:
-    sleep(5)
-    reset()

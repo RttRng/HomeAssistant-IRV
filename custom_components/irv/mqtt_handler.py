@@ -22,10 +22,10 @@ from .const import (
     TOPIC_PING,
     TOPIC_PONG,
     TOPIC_STATUS,
-    TYPE_RELE,
+    TYPE_SWITCH,
     TYPE_SENSOR,
     TYPE_SGREADY,
-    TYPE_VENTIL,
+    TYPE_BINARYSENSOR,
     board_from_discovery_topic,
 )
 from .peripheral import Peripheral, parse_discovery_payload
@@ -252,7 +252,7 @@ class IRVMQTTHandler:
                 self._register_entity(p, "sensor", ent)
                 sensors.append(ent)
 
-            elif p.ptype in (TYPE_RELE, TYPE_VENTIL):
+            elif p.ptype in (TYPE_SWITCH, TYPE_BINARYSENSOR):
                 sw = IRVSwitch(self, p, device_info)
                 self._register_entity(p, "switch", sw)
                 self.register_switch(sw)

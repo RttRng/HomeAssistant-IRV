@@ -1,7 +1,8 @@
 from machine import Pin
+from crash_lib import *
+
 class Logger:
-    def __init__(self,debug=True) -> None:
-        self.debug = debug
+    def __init__(self) -> None:
         self.count_in = 0
         self.count_out = 0
         self.name = "unknown"
@@ -14,13 +15,18 @@ class Logger:
             os.stat("debug.flag")
             return {"version":{"value":"DEBUG - "+self.version["version"]},
                     "in":{"value":self.count_in,"unit":"msgs"},
-                    "out":{"value":self.count_out,"unit":"msgs"}}
+                    "out":{"value":self.count_out,"unit":"msgs"},
+                    "crashes":{"value":_read_crash_count(),"unit":"crashes"}
+                    }
         except OSError:
             return {"version":{"value":self.version["version"]},
                     "in":{"value":self.count_in,"unit":"msgs"},
-                    "out":{"value":self.count_out,"unit":"msgs"}}
+                    "out":{"value":self.count_out,"unit":"msgs"},
+                    "crashes":{"value":_read_crash_count(),"unit":"crashes"}
+                    }
     def set_wdt(self,wdt):
         self.wdt = wdt
+
     def feed(self):
         self.wdt.feed()
     def setDebug(self,state:bool):
@@ -30,8 +36,7 @@ class Logger:
     def increment_out(self):
         self.count_out += 1
     def print(self,*args, end="\n"):
-        if self.debug:
-            print(*args, end=end)
+        print(*args, end=end)
 
 class FakeWDT:
     def __init__(self, timeout=8000):

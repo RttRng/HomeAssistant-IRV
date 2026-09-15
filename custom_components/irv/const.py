@@ -46,9 +46,6 @@ TYPE_BME = "BME280"
 # (DHT peripherals, expanded BME sub-sensors, and the implicit debug sensors)
 TYPE_SENSOR = "SENSOR"
 
-# Peripheral types that get a Switch + BinarySensor(actual) + label Sensor(actual)
-BINARY_TYPES = (TYPE_SWITCH, TYPE_BINARYSENSOR)
-
 # -----------------------------------------------------------------------
 # BME280 expansion: one discovered BME peripheral fans out into 4 sensors
 # -----------------------------------------------------------------------
@@ -68,6 +65,7 @@ IMPLICIT_SENSORS = {
     "version": None,
     "in": "msgs",
     "out": "msgs",
+    "crashes": "crashes",
 }
 
 # -----------------------------------------------------------------------

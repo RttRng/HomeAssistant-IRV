@@ -113,6 +113,10 @@ def update(version, config, logger):
         os.rename("/version.json.part", "/version.json")
 
         logger.print("Update completed successfully!")
+        from crash_lib import *
+
+        _write_crash_count(0)
+
         import machine
         machine.reset()
     except Exception as e:

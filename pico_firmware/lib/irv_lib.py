@@ -59,7 +59,7 @@ class Bme280:
         self.logger.print("Reporting BME280 data for",self.name,": Humidity")
         self.logger.print("Reporting BME280 data for",self.name,": Dew Point")
         return {self.name+"/teplota":{"value":str(data[0]),"unit":"C"},
-                self.name+"/tlak":{"value":str(data[1]),"unit":"kPa"},
+                self.name+"/tlak":{"value":str(data[1]/1000),"unit":"kPa"},
                 self.name+"/vlhkost":{"value":str(data[2]),"unit":"%"},
                 self.name+"/rosny_bod":{"value":str(data[3]),"unit":"C"}}
     def command(self, topic, msg):
@@ -124,34 +124,38 @@ class KIT:
         self.lcd.setCursor(0,0)
         self.data = []
         last_time = read_json("last_time.json")
-        self.strings = [("Woke up!" if reset_cause() == 3 else ("Hello! ZZZ" if read_json("sleep.json")["sleep"] else "Hello!")),
-                        "Running from batery" if self.logger.config["SETTINGS"]["BATTERY"] else "Running from cable",
-                        f"{last_time[0][0]}h {last_time[0][1]}m ({last_time[1][0]}h {last_time[1][1]}m)",
-                        str("Ver: "+self.logger.version["version"]+(" T" if self.logger.version["tested"] else " uT")+(" S" if self.logger.version["stable"] else " uS")+str(reset_cause()))]
+        try:
+            os.stat("debug.flag")
+            self.strings =  [f"Version: DEBUG - {self.version["version"]}",
+                            f"In: {self.count_in}",
+                            f"Out: {self.count_out}",
+                            f"Crashes: {_read_crash_count()}"
+                            ]
+        except OSError:
+            self.strings =  [f"Version: {self.version["version"]}",
+                            f"In: {self.count_in}",
+                            f"Out: {self.count_out}",
+                            f"Crashes: {_read_crash_count()}"
+                            ]
         self.update_lcd()
     def update_lcd(self):
         for i in range(4):
             self.lcd.setCursor(i,0)
             self.lcd.printClean(self.strings[i])
     def report(self):
-        import ntptime
-        from time import localtime, time
-        from machine import reset_cause
-        self.strings[0] = ("Woke up! Report." if reset_cause() == 3 else "Hello! Report.")
         try:
-            self.logger.print("Syncing time with NTP...")
-            ntptime.settime()  # Sets Pico's RTC (UTC)
-            self.logger.print("Time synced!")
-            TIME_OFFSET = 3600*(2)
-            now = time() + TIME_OFFSET
-            local_time = localtime(now)
-            last_time = read_json("last_time.json")
-            write = [local_time[3:6],last_time[0][0:3]]
-            write_json("last_time.json",write)
-            self.strings[2] = f"{local_time[3]}h {local_time[4]}m ({last_time[0][0]}h {last_time[0][1]}m)"
-        except:
-            self.logger.print("NTP sync failed")
-
+            os.stat("debug.flag")
+            self.strings =  [f"Version: DEBUG - {self.version["version"]}",
+                            f"In: {self.count_in}",
+                            f"Out: {self.count_out}",
+                            f"Crashes: {_read_crash_count()}"
+                            ]
+        except OSError:
+            self.strings =  [f"Version: {self.version["version"]}",
+                            f"In: {self.count_in}",
+                            f"Out: {self.count_out}",
+                            f"Crashes: {_read_crash_count()}"
+                            ]
         self.update_lcd()
         return {}
     def command(self, topic, msg):
