@@ -10,7 +10,7 @@ import json
 
 REBOOT_DELAY_S = 90
 
-def _connect_wifi(credentials, max_attempts=10):
+def _connect_wifi(logger, credentials, max_attempts=10):
     wlan = network.WLAN(network.STA_IF)
     try:
         wlan.deinit()
@@ -18,6 +18,7 @@ def _connect_wifi(credentials, max_attempts=10):
         pass
     wlan.active(True)
     for attempt in range(max_attempts):
+        logger.wdt.feed()
         nets = wlan.scan()
         best_net, best_rssi = None, -999
         for ssid_bytes, *_rest, rssi, _authmode, _hidden in nets:
@@ -29,6 +30,7 @@ def _connect_wifi(credentials, max_attempts=10):
             timeout = 15
             while not wlan.isconnected() and timeout > 0:
                 time.sleep(1)
+                logger.wdt.feed()
                 timeout -= 1
             if wlan.isconnected():
                 return True
@@ -58,9 +60,9 @@ def _ping_distress(reason, error, version):
     except Exception as e:
         print("distress ping failed (non-fatal):", e)
 
-def run(reason="unknown", error=""):
+def run(logger,reason="unknown", error=""):
     print("=== RESCUE MODE ===", reason, error)
-
+    logger.wdt.feed()
     try:
         identity = open("identity.txt").read().strip()
         wifi_config = _read_json("wifi.json")
@@ -71,10 +73,13 @@ def run(reason="unknown", error=""):
         time.sleep(REBOOT_DELAY_S)
         machine.reset()
         return
-
-    if _connect_wifi(wifi_config):
+    logger.wdt.feed()
+    if _connect_wifi(logger,wifi_config):
+        logger.wdt.feed()
         _ping_distress(reason, error, version)
+        logger.wdt.feed()
         try:
+            logger.wdt.feed()
             import pull
             result = pull.update(version,config,logger)
             print("rescue: pull result:", result)
@@ -84,5 +89,9 @@ def run(reason="unknown", error=""):
         print("rescue: WiFi failed this pass")
 
     print("rescue: pass complete, rebooting in", REBOOT_DELAY_S, "s")
-    time.sleep(REBOOT_DELAY_S)
+    waiting = 0
+    while waiting < REBOOT_DELAY_S:
+        logger.wdt.feed()
+        time.sleep(5)
+        waiting += 5
     machine.reset()

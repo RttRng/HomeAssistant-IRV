@@ -161,7 +161,7 @@ def main_loop():
                 logger.print("Checking for MQTT message...")
                 mqtt.client.check_msg()
                 gc.collect()
-                wdt.feed()
+                logger.wdt.feed()
                 sleep(3)
             except Exception as e:
                 logger.print("Error during loop:", e)
