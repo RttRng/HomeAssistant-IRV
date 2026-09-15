@@ -7,13 +7,14 @@ def _debug_flag_present():
         return True
     except OSError:
         return False
+        
+from log_lib import Logger
+logger = Logger(True)
 
 DEBUG = _debug_flag_present()
 if DEBUG:
     pass
 else:
-    from log_lib import Logger
-    logger = Logger(True)
     logger.print("Initializing WDT")
     logger.set_wdt(WDT(timeout=config["SETTINGS"]["WDT_TIMEOUT"]))
 

@@ -76,7 +76,7 @@ def run(reason="unknown", error=""):
         _ping_distress(reason, error, version)
         try:
             import pull
-            result = pull.update(version,config)
+            result = pull.update(version,config,logger)
             print("rescue: pull result:", result)
         except Exception as e:
             print("rescue: pull.update() itself raised:", e)

@@ -1,5 +1,5 @@
 from irv_lib import *
-import pull
+
 
 identity = get_id()
 config = read_json(f"/branches/{identity}/config.json")
@@ -130,8 +130,6 @@ def main_loop():
         logger.wdt.feed()
         logger.led.on()
         connect_best_wifi(logger=logger,credentials=config["WIFI"],max_attempts=5)
-        logger.print("Update?")
-        logger.print(pull.update(version,config))
         mqtt = MQTT(logger=logger,credentials=config["MQTT"],callback=mqtt_callback,peripherals=peripherals,config=config,topics_o=TOPIC_O,topics_i=TOPIC_I,max_attempts=5)
         mqtt.subscribe_list(TOPIC_I_LIST)
         mqtt.discover()
