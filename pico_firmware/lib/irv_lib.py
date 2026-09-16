@@ -124,37 +124,27 @@ class KIT:
         self.lcd.setCursor(0,0)
         self.data = []
         last_time = read_json("last_time.json")
-        try:
-            os.stat("debug.flag")
-            self.strings =  [f"Version: DEBUG - {self.logger.version['version']}",
-                            f"In: {self.logger.count_in}",
-                            f"Out: {self.logger.count_out}",
-                            f"Crashes: {read_crash_count()}"
-                            ]
-        except OSError:
-            self.strings =  [f"Version: {self.logger.version['version']}",
-                            f"In: {self.logger.count_in}",
-                            f"Out: {self.logger.count_out}",
-                            f"Crashes: {read_crash_count()}"
-                            ]
-        self.update_lcd()
+        self.report()
     def update_lcd(self):
         for i in range(4):
             self.lcd.setCursor(i,0)
             self.lcd.printClean(self.strings[i])
     def report(self):
+        flags = ""
+        try:
+            os.stat("checksum_disabled.flag")
+            flags = flags + "[CHECKSUM DISABLED]"
+        except:
+            pass
         try:
             os.stat("debug.flag")
-            self.strings =  [f"Version: DEBUG - {self.version["version"]}",
-                            f"In: {self.count_in}",
-                            f"Out: {self.count_out}",
-                            f"Crashes: {read_crash_count()}"
-                            ]
-        except OSError:
-            self.strings =  [f"Version: {self.version["version"]}",
-                            f"In: {self.count_in}",
-                            f"Out: {self.count_out}",
-                            f"Crashes: {read_crash_count()}"
+            flags = flags + "[IN DEBUG MODE]"
+        except:
+            pass
+        self.strings =  [f"Version: {self.logger.version["version"]}",
+                            f"In: {self.logger.count_in} Out: {self.logger.count_out}",
+                            f"Crashes: {read_crash_count()}",
+                            f"{flags}"
                             ]
         self.update_lcd()
         return {}

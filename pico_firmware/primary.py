@@ -49,7 +49,8 @@ TOPIC_I = {"CHECK":b'check',
            "DATA":b'give',
            "RESET":b'reset',
            "PONG":b'pong',
-           "UNDEBUG":b'undebug'
+           "UNDEBUG":b'undebug',
+           "UPDATE":b'update'
            }
 TOPIC_I_LIST = [x for x in TOPIC_I.values()]
 TOPIC_O = {"CHECK":b'status',
@@ -115,6 +116,14 @@ def mqtt_callback(topic, msg):
                     reset()
             except OSError:
                 logger.print("debug flag not present")
+        elif topic == TOPIC_I["UPDATE"] and msg_me:
+            try:
+                logger.wdt.feed()
+                import pull
+                result = pull.update(version,config,logger)
+                logger.print("rescue: pull result:", result)
+            except Exception as e:
+                logger.print("rescue: pull.update() itself raised:", e)
                 
 
         else:
