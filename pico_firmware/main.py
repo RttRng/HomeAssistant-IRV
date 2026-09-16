@@ -96,6 +96,7 @@ def mqtt_callback(topic, msg):
         elif topic == TOPIC_I["PONG"] and msg_me:
             global got_ping
             got_ping = True
+            crash_count_decrease_conditions["pong"] = True
         elif topic == TOPIC_I["UNDEBUG"] and msg_me:
             try:
                 os.stat("debug.flag")
@@ -158,6 +159,13 @@ def to_do(to_do_list):
     if to_do_list["report"]:
         to_do_list["report"] = False
         mqtt.report_state()
+        crash_count_decrease_conditions["report"] = True
+
+    if crash_count_decrease_conditions["report"] == True and crash_count_decrease_conditions["check"] == True and crash_count_decrease_conditions["pong"] == True and crash_count_decrease_conditions["decreased"] == False:
+       crash_count_decrease_conditions["decreased"] = True
+       from crash_lib import *
+       n = _read_crash_count()
+       _write_crash_count(max(0,n-1))
 # Main loop
 def main_loop():
     

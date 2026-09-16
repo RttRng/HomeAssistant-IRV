@@ -1,7 +1,7 @@
 {
     "domain": "irv",
     "name": "Inteligentí řizení vytápění",
-    "version": "4.0.1",
+    "version": "4.0.2",
     "documentation": "https://github.com/RttRng/HomeAssistant-IRV",
     "requirements": [],
     "dependencies": ["mqtt"],

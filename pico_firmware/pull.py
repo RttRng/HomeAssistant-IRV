@@ -7,6 +7,7 @@ def _channel(config):
     return "tested"
     
 def _sha256_hex(data):
+    import uhashlib
     h = uhashlib.sha256()
     h.update(data)
     import ubinascii
