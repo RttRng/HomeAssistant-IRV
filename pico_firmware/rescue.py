@@ -60,6 +60,16 @@ def _ping_distress(reason, error, version):
     except Exception as e:
         print("distress ping failed (non-fatal):", e)
 
+
+def reboot_with_delay(delay):
+    waiting = 0
+    while waiting < delay:
+        logger.wdt.feed()
+        time.sleep(5)
+        waiting += 5
+    machine.reset()
+
+
 def run(logger,reason="unknown", error=""):
     print("=== RESCUE MODE ===", reason, error)
     logger.wdt.feed()
@@ -70,8 +80,7 @@ def run(logger,reason="unknown", error=""):
         config = _read_json(f"/branches/{identity}/config.json")
     except Exception as e:
         print("rescue: couldn't read local config:", e)
-        time.sleep(REBOOT_DELAY_S)
-        machine.reset()
+        reboot_with_delay(REBOOT_DELAY_S)
         return
     logger.wdt.feed()
     if _connect_wifi(logger,wifi_config):
@@ -89,9 +98,4 @@ def run(logger,reason="unknown", error=""):
         print("rescue: WiFi failed this pass")
 
     print("rescue: pass complete, rebooting in", REBOOT_DELAY_S, "s")
-    waiting = 0
-    while waiting < REBOOT_DELAY_S:
-        logger.wdt.feed()
-        time.sleep(5)
-        waiting += 5
-    machine.reset()
+    reboot_with_delay(REBOOT_DELAY_S)

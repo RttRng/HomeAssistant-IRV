@@ -22,6 +22,20 @@ logger.version = version
 logger.name = config["MQTT"]["ID"]
 logger.config = config
 
+crash_count_decrease_conditions = {
+    "check":False,
+    "report":False,
+    "pong":False,
+    "decreased":False
+}
+
+to_do_list = {
+    "subscribe":False,
+    "reset":False,
+    "ping":False,
+    "report":False
+}
+
 
 
 name_base = config["MQTT"]["ID"]
@@ -69,8 +83,9 @@ def mqtt_callback(topic, msg):
         logger.print(f"Received message on {topic}: {msg}")
         if topic == TOPIC_I["CHECK"] and msg_me:
             mqtt.respond_status()
+            crash_count_decrease_conditions["check"] = True
         elif topic == TOPIC_I["DATA"] and msg_me:
-            mqtt.report_state(None)
+            mqtt.report_state()
         elif topic == TOPIC_I["RESET"] and msg_me:
             logger.print("reset command")
             try:
@@ -99,19 +114,19 @@ def mqtt_callback(topic, msg):
                 p.command(topic.decode(),msg.decode())
 
 
-def cb_reset(timer):
+def to_do_reset():
     global mqtt
     mqtt.client.publish(b"reseting/timer",logger.name.encode())
     sleep(3)
+    reset()
 
-def cb_sub(timer):
+def to_do_sub():
     global mqtt
     mqtt.subscribe_list(TOPIC_I_LIST)
     mqtt.client.publish(b"subscribing/timer",logger.name.encode())
     sleep(3)
-    
 got_ping = True
-def ping(timer):
+def to_do_ping():
     global mqtt, got_ping
     logger.print("Ping: ",str(got_ping))
     if not got_ping:
@@ -122,7 +137,27 @@ def ping(timer):
     got_ping = False
     sleep(2)
 
-
+def cb_sub(timer):
+    to_do_list["subscribe"] = True
+def cb_reset(timer):
+    to_do_list["reset"] = True
+def cb_ping(timer):
+    to_do_list["ping"] = True
+def cb_report(timer):
+    to_do_list["report"] = True
+def to_do(to_do_list):
+    if to_do_list["reset"]:
+        to_do_list["reset"] = False
+        to_do_reset()
+    if to_do_list["subscribe"]:
+        to_do_list["subscribe"] = False
+        to_do_sub()
+    if to_do_list["ping"]:
+        to_do_list["ping"] = False
+        to_do_ping()
+    if to_do_list["report"]:
+        to_do_list["report"] = False
+        mqtt.report_state()
 # Main loop
 def main_loop():
     
@@ -136,21 +171,22 @@ def main_loop():
     
 
     global mqtt, got_ping
-    timer_send = Timer()
-    timer_send.init(period=config["SETTINGS"]["PERIODIC_SEND_MS"], mode=Timer.PERIODIC, callback=mqtt.report_state)
+    timer_report = Timer()
+    timer_report.init(period=config["SETTINGS"]["PERIODIC_SEND_MS"], mode=Timer.PERIODIC, callback=cb_report)
     timer_reset = Timer()
     timer_reset.init(period=config["SETTINGS"]["PERIODIC_RESET_MS"], mode=Timer.PERIODIC, callback=cb_reset)
     timer_sub = Timer()
     timer_sub.init(period=config["SETTINGS"]["PERIODIC_SUBSCRIBE_MS"], mode=Timer.PERIODIC, callback=cb_sub)
     timer_ping = Timer()
-    timer_ping.init(period=config["SETTINGS"]["PERIODIC_PING_MS"],mode=Timer.PERIODIC,callback=ping)
-    mqtt.report_state(timer_send)
+    timer_ping.init(period=config["SETTINGS"]["PERIODIC_PING_MS"],mode=Timer.PERIODIC,callback=cb_ping)
+    mqtt.report_state()
     logger.wdt.feed()
     logger.led.off()
     logger.print("Entering main loop")
     while True:
         try:
             logger.wdt.feed()
+            to_do(to_do_list)
             logger.print("Checking for MQTT message...")
             mqtt.client.check_msg()
             gc.collect()

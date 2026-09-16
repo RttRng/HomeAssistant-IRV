@@ -126,15 +126,15 @@ class KIT:
         last_time = read_json("last_time.json")
         try:
             os.stat("debug.flag")
-            self.strings =  [f"Version: DEBUG - {self.version["version"]}",
-                            f"In: {self.count_in}",
-                            f"Out: {self.count_out}",
+            self.strings =  [f"Version: DEBUG - {self.logger.version['version']}",
+                            f"In: {self.logger.count_in}",
+                            f"Out: {self.logger.count_out}",
                             f"Crashes: {_read_crash_count()}"
                             ]
         except OSError:
-            self.strings =  [f"Version: {self.version["version"]}",
-                            f"In: {self.count_in}",
-                            f"Out: {self.count_out}",
+            self.strings =  [f"Version: {self.logger.version['version']}",
+                            f"In: {self.logger.count_in}",
+                            f"Out: {self.logger.count_out}",
                             f"Crashes: {_read_crash_count()}"
                             ]
         self.update_lcd()
@@ -306,7 +306,7 @@ class MQTT:
             self.logger.print(f"Responded to CHECK with: {msg}")
         except Exception as e:
             self.logger.print("Failed to publish CHECK response:", e)
-    def report_state(self,timer):
+    def report_state(self):
         self.logger.wdt.feed()
         self.logger.print("Reporting state...")
         report = {}

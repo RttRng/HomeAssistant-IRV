@@ -1,6 +1,6 @@
 from machine import Pin
 from crash_lib import *
-
+import os
 class Logger:
     def __init__(self) -> None:
         self.count_in = 0

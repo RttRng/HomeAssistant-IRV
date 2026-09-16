@@ -1,3 +1,4 @@
+import json
 def _read_crash_count():
     try:
         with open("crash_count.json", "r") as f:
