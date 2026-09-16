@@ -34,10 +34,9 @@ if not DEBUG:
 CRASH_THRESHOLD = 3
 MAX_TRACKED_CRASHES = 20
 crash_count = min(_read_crash_count(), MAX_TRACKED_CRASHES)
-
+import rescue
 if crash_count >= CRASH_THRESHOLD:
     print("Crash threshold reached (", crash_count, "), going to rescue")
-    import rescue
     rescue.run(logger,reason="crash_threshold")
 else:
     try:
