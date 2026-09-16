@@ -18,8 +18,21 @@ def update(version, config, logger):
     try:
         logger.wdt.feed()
         import urequests
-        import uhashlib
         import os
+        try:
+            import uhashlib
+            verify_checksums = True
+        except ImportError as e:
+            logger.print("pull: uhashlib unavailable, disabling checksum verification:", e)
+            verify_checksums = False
+            uhashlib = None
+            # Flag so this is visible without needing serial access.
+            # TESTING ONLY - see note below.
+            try:
+                with open("checksum_disabled.flag", "w") as f:
+                    f.write(str(e))
+            except OSError:
+                pass
 
         with open("api.key", "r") as f:
             key = f.read().strip()

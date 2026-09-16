@@ -11,19 +11,23 @@ class Logger:
         self.led = StatusLight()
         self.config = {}
     def prepare_log(self):
+        flags = ""
+        try:
+            os.stat("checksum_disabled.flag")
+            flags = flags + "[CHECKSUM FAILED]"
+        except:
+            pass
         try:
             os.stat("debug.flag")
-            return {"version":{"value":"DEBUG - "+self.version["version"]},
-                    "in":{"value":self.count_in,"unit":"msgs"},
-                    "out":{"value":self.count_out,"unit":"msgs"},
-                    "crashes":{"value":_read_crash_count(),"unit":"crashes"}
-                    }
-        except OSError:
-            return {"version":{"value":self.version["version"]},
-                    "in":{"value":self.count_in,"unit":"msgs"},
-                    "out":{"value":self.count_out,"unit":"msgs"},
-                    "crashes":{"value":_read_crash_count(),"unit":"crashes"}
-                    }
+            flags = flags + "[IN DEBUG MODE]"
+        except:
+            pass
+        return {"flags":{"value":flags},
+                "version":{"value":self.version["version"]},
+                "in":{"value":self.count_in,"unit":"msgs"},
+                "out":{"value":self.count_out,"unit":"msgs"},
+                "crashes":{"value":_read_crash_count(),"unit":"crashes"}
+                }
     def set_wdt(self,wdt):
         self.wdt = wdt
 

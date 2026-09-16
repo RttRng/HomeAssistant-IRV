@@ -66,6 +66,7 @@ IMPLICIT_SENSORS = {
     "in": "msgs",
     "out": "msgs",
     "crashes": "crashes",
+    "flags": None,
 }
 
 # -----------------------------------------------------------------------
