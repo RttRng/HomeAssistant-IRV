@@ -2,7 +2,7 @@ from machine import Pin
 from crash_lib import *
 import os
 class Logger:
-    def __init__(self) -> None:
+    def __init__(self,temp=True) -> None:
         self.count_in = 0
         self.count_out = 0
         self.name = "unknown"

@@ -19,7 +19,7 @@
     {"name":"primary.py","path":""},
     {"name":"rescue.py","path":""},
     {"name":"version.json","path":""},
-    {"name":"init.py","path":""}
+    {"name":"initialise.py","path":""}
 ],
  "dirs":["lib","lib/umqtt","branches","branches/borek","branches/kotel","branches/obyvak","branches/koupelna","branches/mirosov","branches/test"]
 }

@@ -1,6 +1,6 @@
 from irv_lib import *
 from log_lib import * 
-from init import logger
+from initialise import logger
 
 
 identity = get_id()
@@ -103,6 +103,7 @@ def mqtt_callback(topic, msg):
             got_ping = True
             crash_count_decrease_conditions["pong"] = True
         elif topic == TOPIC_I["UNDEBUG"] and msg_me:
+            logger.print("removing debug flag")
             try:
                 os.stat("debug.flag")
                 os.remove("debug.flag")
@@ -113,7 +114,8 @@ def mqtt_callback(topic, msg):
                 finally:
                     reset()
             except OSError:
-                pass
+                logger.print("debug flag not present")
+                
 
         else:
             for p in peripherals:
