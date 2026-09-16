@@ -14,7 +14,7 @@ class Logger:
         flags = ""
         try:
             os.stat("checksum_disabled.flag")
-            flags = flags + "[CHECKSUM FAILED]"
+            flags = flags + "[CHECKSUM DISABLED]"
         except:
             pass
         try:

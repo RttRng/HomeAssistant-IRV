@@ -1,3 +1,23 @@
+import urequests
+import os
+import json
+try:
+    import uhashlib
+    import ubinascii
+    verify_checksums = True
+except ImportError as e:
+    logger.print("pull: uhashlib unavailable, disabling checksum verification:", e)
+    verify_checksums = False
+    uhashlib = None
+    # Flag so this is visible without needing serial access.
+    # TESTING ONLY - see note below.
+    try:
+        with open("checksum_disabled.flag", "w") as f:
+            f.write(str(e))
+    except OSError:
+        pass
+
+
 def _channel(config):
     settings = config["SETTINGS"]
     if settings["CHANNEL"] == "unstable":
@@ -7,33 +27,15 @@ def _channel(config):
     return "tested"
     
 def _sha256_hex(data):
-    import uhashlib
     h = uhashlib.sha256()
     h.update(data)
-    import ubinascii
     return ubinascii.hexlify(h.digest()).decode()
 
 
 def update(version, config, logger):
+    global verify_checksums
     try:
         logger.wdt.feed()
-        import urequests
-        import os
-        try:
-            import uhashlib
-            verify_checksums = True
-        except ImportError as e:
-            logger.print("pull: uhashlib unavailable, disabling checksum verification:", e)
-            verify_checksums = False
-            uhashlib = None
-            # Flag so this is visible without needing serial access.
-            # TESTING ONLY - see note below.
-            try:
-                with open("checksum_disabled.flag", "w") as f:
-                    f.write(str(e))
-            except OSError:
-                pass
-
         with open("api.key", "r") as f:
             key = f.read().strip()
         with open("base_url.txt", "r") as f:
@@ -128,7 +130,7 @@ def update(version, config, logger):
                 resp.close()
 
                 actual = _sha256_hex(data)
-                if actual != expected:
+                if actual != expected and verify_checksums:
                     return ("Checksum mismatch for " + key +
                             " (expected " + expected + ", got " + actual + "), aborting")
 
