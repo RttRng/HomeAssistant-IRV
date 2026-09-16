@@ -331,4 +331,4 @@ class MQTT:
         payload.update({"SETTINGS":self.config["SETTINGS"]})
         payload.update({"VERSION":self.logger.version["version"]})
         payload.update({"TOPICS":{"IN":self.topics_i,"OUT":self.topics_o}})
-        self.client.publish(self.topics_o["DISCOVER"], json.dumps(payload),retain=True,qos=2)
+        self.client.publish(self.topics_o["DISCOVER"], json.dumps(payload),retain=True,qos=1)

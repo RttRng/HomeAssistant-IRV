@@ -1,21 +1,8 @@
 import urequests
 import os
 import json
-try:
-    import uhashlib
-    import ubinascii
-    verify_checksums = True
-except ImportError as e:
-    logger.print("pull: uhashlib unavailable, disabling checksum verification:", e)
-    verify_checksums = False
-    uhashlib = None
-    # Flag so this is visible without needing serial access.
-    # TESTING ONLY - see note below.
-    try:
-        with open("checksum_disabled.flag", "w") as f:
-            f.write(str(e))
-    except OSError:
-        pass
+import uhashlib
+import ubinascii
 
 
 def _channel(config):
@@ -33,7 +20,6 @@ def _sha256_hex(data):
 
 
 def update(version, config, logger):
-    global verify_checksums
     try:
         logger.wdt.feed()
         with open("api.key", "r") as f:
@@ -130,7 +116,7 @@ def update(version, config, logger):
                 resp.close()
 
                 actual = _sha256_hex(data)
-                if actual != expected and verify_checksums:
+                if actual != expected:
                     return ("Checksum mismatch for " + key +
                             " (expected " + expected + ", got " + actual + "), aborting")
 
