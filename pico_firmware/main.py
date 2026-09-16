@@ -22,6 +22,9 @@ logger.version = version
 logger.name = config["MQTT"]["ID"]
 logger.config = config
 
+import pull
+update_result = pull.update(version,config,logger)
+
 crash_count_decrease_conditions = {
     "check":False,
     "report":False,
