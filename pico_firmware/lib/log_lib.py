@@ -26,7 +26,7 @@ class Logger:
                 "version":{"value":self.version["version"]},
                 "in":{"value":self.count_in,"unit":"msgs"},
                 "out":{"value":self.count_out,"unit":"msgs"},
-                "crashes":{"value":_read_crash_count(),"unit":"crashes"}
+                "crashes":{"value":read_crash_count(),"unit":"crashes"}
                 }
     def set_wdt(self,wdt):
         self.wdt = wdt

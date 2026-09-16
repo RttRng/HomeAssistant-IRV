@@ -3,10 +3,15 @@ import os
 from machine import WDT
 from crash_lib import *
 
+print("Waiting for keyboard interupt:")
+from time import sleep
+sleep(4)
+
 
 def _debug_flag_present():
     try:
         os.stat("debug.flag")
+        print("[DEBUG]")
         return True
     except OSError:
         return False
@@ -33,7 +38,7 @@ if not DEBUG:
 
 CRASH_THRESHOLD = 3
 MAX_TRACKED_CRASHES = 20
-crash_count = min(_read_crash_count(), MAX_TRACKED_CRASHES)
+crash_count = min(read_crash_count(), MAX_TRACKED_CRASHES)
 import rescue
 if crash_count >= CRASH_THRESHOLD:
     print("Crash threshold reached (", crash_count, "), going to rescue")
@@ -45,7 +50,7 @@ else:
     except Exception as e:
         reason, error = "exception", e
     finally:
-        _write_crash_count(crash_count + 1)
+        write_crash_count(crash_count + 1)
 
     print("main.py ended:", reason, error)
     rescue.run(logger, reason=reason, error=error)

@@ -81,7 +81,6 @@ def run(logger,reason="unknown", error=""):
     except Exception as e:
         print("rescue: couldn't read local config:", e)
         reboot_with_delay(logger,REBOOT_DELAY_S)
-        return
     logger.wdt.feed()
     if _connect_wifi(logger,wifi_config):
         logger.wdt.feed()

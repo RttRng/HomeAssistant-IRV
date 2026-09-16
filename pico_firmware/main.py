@@ -167,8 +167,8 @@ def to_do(to_do_list):
     if crash_count_decrease_conditions["report"] == True and crash_count_decrease_conditions["check"] == True and crash_count_decrease_conditions["pong"] == True and crash_count_decrease_conditions["decreased"] == False:
        crash_count_decrease_conditions["decreased"] = True
        from crash_lib import *
-       n = _read_crash_count()
-       _write_crash_count(max(0,n-1))
+       n = read_crash_count()
+       write_crash_count(max(0,n-1))
 # Main loop
 def main_loop():
     

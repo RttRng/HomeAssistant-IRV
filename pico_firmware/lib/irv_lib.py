@@ -129,13 +129,13 @@ class KIT:
             self.strings =  [f"Version: DEBUG - {self.logger.version['version']}",
                             f"In: {self.logger.count_in}",
                             f"Out: {self.logger.count_out}",
-                            f"Crashes: {_read_crash_count()}"
+                            f"Crashes: {read_crash_count()}"
                             ]
         except OSError:
             self.strings =  [f"Version: {self.logger.version['version']}",
                             f"In: {self.logger.count_in}",
                             f"Out: {self.logger.count_out}",
-                            f"Crashes: {_read_crash_count()}"
+                            f"Crashes: {read_crash_count()}"
                             ]
         self.update_lcd()
     def update_lcd(self):
@@ -148,13 +148,13 @@ class KIT:
             self.strings =  [f"Version: DEBUG - {self.version["version"]}",
                             f"In: {self.count_in}",
                             f"Out: {self.count_out}",
-                            f"Crashes: {_read_crash_count()}"
+                            f"Crashes: {read_crash_count()}"
                             ]
         except OSError:
             self.strings =  [f"Version: {self.version["version"]}",
                             f"In: {self.count_in}",
                             f"Out: {self.count_out}",
-                            f"Crashes: {_read_crash_count()}"
+                            f"Crashes: {read_crash_count()}"
                             ]
         self.update_lcd()
         return {}
