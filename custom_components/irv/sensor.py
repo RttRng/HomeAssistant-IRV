@@ -18,7 +18,13 @@ def _friendly(name: str) -> str:
 
 
 class IRVSensor(SensorEntity):
-    """Numeric/plain sensor fed from an IRV state report."""
+    """Numeric/plain sensor fed from an IRV state report.
+
+    Keeps the last raw (as-reported) value separately from the displayed
+    value so a calibration offset changed later in the HA UI (see
+    IRVMQTTHandler.apply_corrections_from_options) can be re-applied
+    immediately, without waiting for the next MQTT report.
+    """
 
     def __init__(self, handler, peripheral: Peripheral, device_info):
         self.handler = handler
@@ -30,11 +36,19 @@ class IRVSensor(SensorEntity):
         self._attr_unique_id = f"irv_{peripheral.board}_{peripheral.name}_sensor"
         self._attr_native_unit_of_measurement = peripheral.unit
 
+        self._raw_value = None
+        self._correction = 0.0
         self._state = None
 
     @property
     def native_value(self):
         return self._state
+
+    @property
+    def extra_state_attributes(self):
+        if self._correction:
+            return {"raw_value": self._raw_value, "correction_offset": self._correction}
+        return None
 
     def update_value(self, value, unit=None):
         if self.hass is None:
@@ -48,6 +62,21 @@ class IRVSensor(SensorEntity):
         except (TypeError, ValueError):
             pass
 
+        self._raw_value = value
+        self._recompute_and_write()
+
+    def set_correction(self, offset: float):
+        """Apply a new calibration offset (from the HA options-flow UI)
+        immediately, without needing a fresh MQTT report to land first.
+        """
+        self._correction = offset or 0.0
+        if self.hass is not None and self._raw_value is not None:
+            self._recompute_and_write()
+
+    def _recompute_and_write(self):
+        value = self._raw_value
+        if isinstance(value, (int, float)) and self._correction:
+            value = value + self._correction
         self._state = value
         self.async_write_ha_state()
 

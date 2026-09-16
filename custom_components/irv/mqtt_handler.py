@@ -26,7 +26,9 @@ from .const import (
     TYPE_SENSOR,
     TYPE_SGREADY,
     TYPE_BINARYSENSOR,
+    IMPLICIT_SENSORS,
     board_from_discovery_topic,
+    correction_key,
 )
 from .peripheral import Peripheral, parse_discovery_payload
 
@@ -100,6 +102,67 @@ class IRVMQTTHandler:
         self.store = Store(hass, 1, "irv_state.json")
         self.saved_state = {}
         hass.loop.create_task(self._load_state())
+
+        # Config-entry options: the entry itself (set once async_setup_entry
+        # has it) plus a flattened "board|name" -> offset map kept in sync
+        # with entry.options via apply_corrections_from_options().
+        self.entry = None
+        self.corrections: dict[str, float] = {}
+
+    # -------------------------------------------------------------------
+    # NUMERIC SENSOR CORRECTIONS (calibration offsets, HA options-flow UI)
+    # -------------------------------------------------------------------
+
+    def correctable_peripherals(self) -> list[Peripheral]:
+        """Numeric sensors eligible for a calibration offset.
+
+        Plain sensors with a real unit, excluding the implicit debug
+        counters (version/in/out/crashes/flags) where an offset is
+        meaningless.
+        """
+        result = []
+        for board_peripherals in self.peripherals.values():
+            for p in board_peripherals.values():
+                if (
+                    p.ptype == TYPE_SENSOR
+                    and p.unit is not None
+                    and p.name not in IMPLICIT_SENSORS
+                ):
+                    result.append(p)
+        return result
+
+    def set_entry(self, entry):
+        self.entry = entry
+        self.apply_corrections_from_options(entry.options)
+
+    def apply_corrections_from_options(self, options: dict):
+        """Reload self.corrections from entry.options and push any changed
+        offsets straight into the live sensor entities (no reload needed).
+        """
+        new_corrections = dict(options.get("corrections", {}) or {})
+
+        changed_keys = {
+            key
+            for key in set(new_corrections) | set(self.corrections)
+            if new_corrections.get(key, 0.0) != self.corrections.get(key, 0.0)
+        }
+
+        self.corrections = new_corrections
+
+        for board_peripherals in self.peripherals.values():
+            for p in board_peripherals.values():
+                key = correction_key(p.board, p.name)
+                if key not in changed_keys:
+                    continue
+                ents = self.entities.get(p.key)
+                if not ents:
+                    continue
+                sensor_ent = ents.get("sensor")
+                if sensor_ent and hasattr(sensor_ent, "set_correction"):
+                    sensor_ent.set_correction(self.corrections.get(key, 0.0))
+
+    def get_correction(self, board: str, name: str) -> float:
+        return self.corrections.get(correction_key(board, name), 0.0)
 
     # -------------------------------------------------------------------
     # REGISTRATION HELPERS
@@ -194,14 +257,43 @@ class IRVMQTTHandler:
         return _cb
 
     # -------------------------------------------------------------------
+    # JSON HELPERS
+    # -------------------------------------------------------------------
+
+    @staticmethod
+    def _decode_json_object(payload: str, context: str) -> dict | None:
+        """Decode `payload` as JSON and require it to be an object (dict).
+
+        Returns None (and logs a warning) if the payload isn't valid JSON,
+        or if it decodes to something other than a JSON object (e.g. a
+        bare number, string, list, or null) - both of which are things a
+        misbehaving/malicious MQTT publisher can trivially send and which
+        previously caused an uncaught AttributeError downstream.
+        """
+        try:
+            data = json.loads(payload)
+        except Exception:
+            _LOGGER.warning("IRV: invalid JSON on %s: %s", context, payload)
+            return None
+
+        if not isinstance(data, dict):
+            _LOGGER.warning(
+                "IRV: expected a JSON object on %s, got %s: %s",
+                context,
+                type(data).__name__,
+                payload,
+            )
+            return None
+
+        return data
+
+    # -------------------------------------------------------------------
     # DISCOVERY HANDLING
     # -------------------------------------------------------------------
 
     async def _handle_discovery(self, board: str, payload: str):
-        try:
-            data = json.loads(payload)
-        except Exception:
-            _LOGGER.warning("IRV: invalid discovery JSON on 'discovery/%s': %s", board, payload)
+        data = self._decode_json_object(payload, f"'discovery/{board}'")
+        if data is None:
             return
 
         peripherals = parse_discovery_payload(board, data)
@@ -249,6 +341,7 @@ class IRVMQTTHandler:
         for p in peripherals:
             if p.ptype == TYPE_SENSOR:
                 ent = IRVSensor(self, p, device_info)
+                ent.set_correction(self.get_correction(p.board, p.name))
                 self._register_entity(p, "sensor", ent)
                 sensors.append(ent)
 
@@ -297,10 +390,8 @@ class IRVMQTTHandler:
     # -------------------------------------------------------------------
 
     async def _handle_report(self, board: str, payload: str):
-        try:
-            data = json.loads(payload)
-        except Exception:
-            _LOGGER.warning("IRV: invalid report JSON on '%s': %s", board, payload)
+        data = self._decode_json_object(payload, f"'{board}'")
+        if data is None:
             return
 
         for name, entry in data.items():

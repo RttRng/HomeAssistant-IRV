@@ -32,6 +32,13 @@ def board_from_discovery_topic(topic: str) -> str | None:
     return board or None
 
 
+def correction_key(board: str, name: str) -> str:
+    """Flatten a (board, name) pair into the string key used in
+    entry.options["corrections"], since JSON/HA storage can't use tuple keys.
+    """
+    return f"{board}|{name}"
+
+
 # -----------------------------------------------------------------------
 # PERIPHERAL TYPES (as they appear in the discovery payload's TYPE field)
 # -----------------------------------------------------------------------
