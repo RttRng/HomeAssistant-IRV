@@ -41,6 +41,70 @@ def _read_json(path):
     with open(path, "r") as f:
         return json.load(f)
 
+
+def _safe(fn, default="unknown"):
+    """Run fn() and swallow any exception, returning default instead.
+
+    Used so that one missing/failing diagnostic (e.g. no WLAN handle yet,
+    or a platform without a given machine call) never prevents the rest
+    of the distress payload from being sent.
+    """
+    try:
+        return fn()
+    except Exception:
+        return default
+
+
+def _collect_diagnostics(reason, error, version):
+    """Gather everything useful for triaging a rescue-mode boot.
+
+    Kept as a flat dict of str -> str so it can be turned straight into a
+    query string; every value is computed defensively via _safe() since
+    this runs in an already-degraded state and must never itself raise.
+    """
+    import gc
+    from crash_lib import read_crash_count
+
+    diag = {}
+    diag["reason"] = reason
+    diag["error"] = str(error)[:120]
+    diag["version"] = str(version.get("version", "unknown"))
+    diag["crash_count"] = str(_safe(read_crash_count, 0))
+
+    diag["reset_cause"] = _safe(lambda: str(machine.reset_cause()))
+
+    diag["mem_free"] = _safe(lambda: str(gc.mem_free()))
+    diag["mem_alloc"] = _safe(lambda: str(gc.mem_alloc()))
+
+    def _rssi():
+        wlan = network.WLAN(network.STA_IF)
+        return str(wlan.status("rssi")) if wlan.isconnected() else "not_connected"
+    diag["wifi_rssi"] = _safe(_rssi)
+
+    diag["ip"] = _safe(lambda: network.WLAN(network.STA_IF).ifconfig()[0])
+
+    diag["uptime_ms"] = _safe(lambda: str(time.ticks_ms()))
+
+    return diag
+
+
+def _urlencode(value):
+    """Minimal percent-encoding, since MicroPython has no urllib.parse.
+
+    Only needs to be safe enough for our own diagnostic values (error
+    strings, reset-cause names, etc.) which may contain spaces, colons,
+    or other characters that would otherwise break the query string.
+    """
+    out = []
+    safe = "-_.~"
+    for ch in value:
+        if ch.isalpha() or ch.isdigit() or ch in safe:
+            out.append(ch)
+        else:
+            out.append("%{:02X}".format(ord(ch)))
+    return "".join(out)
+
+
 def _ping_distress(reason, error, version):
     try:
         import urequests
@@ -50,11 +114,13 @@ def _ping_distress(reason, error, version):
             base_url = f.read().strip()
         with open("identity.txt", "r") as f:
             board = f.read().strip()
-        url = (base_url + "rescue_ping"
-               + "?board=" + board
-               + "&version=" + str(version.get("version", "unknown"))
-               + "&reason=" + reason
-               + "&error=" + str(error)[:120])
+
+        diag = _collect_diagnostics(reason, error, version)
+        diag["board"] = board
+
+        query = "&".join(k + "=" + _urlencode(v) for k, v in diag.items())
+        url = base_url + "rescue_ping?" + query
+
         resp = urequests.get(url, headers={"X-API-KEY": key})
         resp.close()
     except Exception as e:
