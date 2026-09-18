@@ -1,13 +1,17 @@
 """Sensor platform for IRV.
 
-Two entity classes cover everything:
+Three entity classes cover everything:
 - IRVSensor: numeric/plain-value sensors (DHT, BME sub-sensors, version/in/out).
 - IRVLabelSensor: text sensor showing the human-readable label of a
   RELE/VENTIL/SGREADY peripheral's actual (reported) state.
+- IRVIntegrationVersionSensor: static sensor showing the installed
+  integration's own manifest.json version (not a board's firmware version).
 """
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.loader import async_get_integration
 
 from .const import DOMAIN
 from .peripheral import Peripheral
@@ -136,11 +140,44 @@ class IRVLabelSensor(SensorEntity):
         self.async_write_ha_state()
 
 
+class IRVIntegrationVersionSensor(SensorEntity):
+    """Static sensor showing the installed IRV integration's own version.
+
+    Read straight from manifest.json via async_get_integration rather than
+    hardcoded a second time anywhere, so it can't drift out of sync with
+    what's actually installed. Deliberately separate from any Pico board's
+    device - this is the HA-side integration version, not firmware version.
+    """
+
+    _attr_has_entity_name = True
+    _attr_name = "Integration Version"
+    _attr_unique_id = "irv_integration_version"
+    _attr_entity_category = "diagnostic"
+
+    def __init__(self, version: str):
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, "integration")},
+            name="IRV Integration",
+            manufacturer="RttRng",
+            model="Home Assistant Integration",
+        )
+        self._state = version
+
+    @property
+    def native_value(self):
+        return self._state
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
     handler = hass.data[DOMAIN]["handler"]
     handler.add_sensor_entities = async_add_entities
-    # No entities exist yet - they arrive asynchronously as boards announce
-    # themselves on 'discovery/<board>' (retained, so typically within
-    # seconds of MQTT connecting, but the integration tolerates it taking
-    # up to the board's own retained-message lifetime after HA boot).
-    async_add_entities([])
+
+    integration = await async_get_integration(hass, DOMAIN)
+    version = integration.manifest.get("version", "unknown")
+    async_add_entities([IRVIntegrationVersionSensor(version)])
+
+    # No board-derived entities exist yet - they arrive asynchronously as
+    # boards announce themselves on 'discovery/<board>' (retained, so
+    # typically within seconds of MQTT connecting, but the integration
+    # tolerates it taking up to the board's own retained-message lifetime
+    # after HA boot).

@@ -116,18 +116,19 @@ class IRVMQTTHandler:
     def correctable_peripherals(self) -> list[Peripheral]:
         """Numeric sensors eligible for a calibration offset.
 
-        Plain sensors with a real unit, excluding the implicit debug
-        counters (version/in/out/crashes/flags) where an offset is
-        meaningless.
+        Plain sensors, excluding the implicit debug counters
+        (version/in/out/crashes/flags) where an offset is meaningless.
+
+        Deliberately does NOT filter on p.unit: DHT peripherals are
+        discovered with unit=None (the unit only arrives with each MQTT
+        report and is applied to the live entity, never written back onto
+        the stored Peripheral), so filtering on unit here would silently
+        exclude every DHT sensor.
         """
         result = []
         for board_peripherals in self.peripherals.values():
             for p in board_peripherals.values():
-                if (
-                    p.ptype == TYPE_SENSOR
-                    and p.unit is not None
-                    and p.name not in IMPLICIT_SENSORS
-                ):
+                if p.ptype == TYPE_SENSOR and p.name not in IMPLICIT_SENSORS:
                     result.append(p)
         return result
 
