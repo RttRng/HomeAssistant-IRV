@@ -10,6 +10,7 @@ Three entity classes cover everything:
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.loader import async_get_integration
 
@@ -152,7 +153,7 @@ class IRVIntegrationVersionSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Integration Version"
     _attr_unique_id = "irv_integration_version"
-    _attr_entity_category = "diagnostic"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, version: str):
         self._attr_device_info = DeviceInfo(
