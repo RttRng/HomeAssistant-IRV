@@ -118,7 +118,7 @@ def mqtt_callback(topic, msg):
                 logger.print("debug flag not present")
         elif topic == TOPIC_I["UPDATE"] and msg_me:
             try:
-                mqtt.client.publish(b"updatubg/command",logger.name.encode())
+                mqtt.client.publish(b"updating/command",logger.name.encode())
                 sleep(3)
             finally:
                 try:
