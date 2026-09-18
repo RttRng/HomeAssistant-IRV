@@ -2,24 +2,16 @@
     {"name":"wifi.json","path":""},
     {"name":"mqtt.json","path":""},
     {"name":"settings.json","path":""},
-    {"name":"bme280_float.py","path":"lib/"},
     {"name":"irv_lib.py","path":"lib/"},
-    {"name":"crash_lib.py","path":"lib/"},
     {"name":"log_lib.py","path":"lib/"},
-    {"name":"simple.mpy","path":"lib/umqtt/"},
-    {"name":"robust.mpy","path":"lib/umqtt/"},
     {"name":"config.json","path":"branches/borek/"},
     {"name":"config.json","path":"branches/kotel/"},
     {"name":"config.json","path":"branches/obyvak/"},
     {"name":"config.json","path":"branches/koupelna/"},
     {"name":"config.json","path":"branches/mirosov/"},
     {"name":"config.json","path":"branches/test/"},
-    {"name":"pull.py","path":""},
-    {"name":"main.py","path":""},
     {"name":"primary.py","path":""},
-    {"name":"rescue.py","path":""},
-    {"name":"version.json","path":""},
-    {"name":"initialise.py","path":""}
+    {"name":"version.json","path":""}
 ],
  "dirs":["lib","lib/umqtt","branches","branches/borek","branches/kotel","branches/obyvak","branches/koupelna","branches/mirosov","branches/test"]
 }

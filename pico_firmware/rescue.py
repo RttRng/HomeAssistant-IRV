@@ -69,8 +69,6 @@ def _collect_diagnostics(reason, error, version):
     diag["reason"] = reason
     diag["error"] = str(error)[:120]
     diag["version"] = str(version.get("version", "unknown"))
-    diag["stable"] = str(version.get("stable", "unknown"))
-    diag["tested"] = str(version.get("tested", "unknown"))
     diag["crash_count"] = str(_safe(read_crash_count, 0))
 
     diag["reset_cause"] = _safe(lambda: str(machine.reset_cause()))
