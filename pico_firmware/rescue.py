@@ -69,6 +69,8 @@ def _collect_diagnostics(reason, error, version):
     diag["reason"] = reason
     diag["error"] = str(error)[:120]
     diag["version"] = str(version.get("version", "unknown"))
+    diag["stable"] = str(version.get("stable", "unknown"))
+    diag["tested"] = str(version.get("tested", "unknown"))
     diag["crash_count"] = str(_safe(read_crash_count, 0))
 
     diag["reset_cause"] = _safe(lambda: str(machine.reset_cause()))
@@ -105,26 +107,61 @@ def _urlencode(value):
     return "".join(out)
 
 
+def _chunk_dict(d, size):
+    """Split dict d into a list of smaller dicts of at most `size` items
+    each, preserving insertion order.
+    """
+    items = list(d.items())
+    return [dict(items[i:i + size]) for i in range(0, len(items), size)]
+
+
+def _send_ping(base_url, key, board, seq, fields):
+    """Send one short GET request carrying `board`, `seq`, and `fields`.
+
+    Kept to roughly the same query length as the original single-field
+    payload (board + version + reason + error) by capping the number of
+    diagnostic fields per request - see CHUNK_SIZE in _ping_distress.
+    Each call is independent: a failure here is caught by the caller and
+    must not stop the remaining chunks from being sent.
+    """
+    import urequests
+
+    payload = {"board": board, "seq": str(seq)}
+    payload.update(fields)
+
+    query = "&".join(k + "=" + _urlencode(v) for k, v in payload.items())
+    url = base_url + "rescue_ping?" + query
+
+    resp = urequests.get(url, headers={"X-API-KEY": key})
+    resp.close()
+
+
 def _ping_distress(reason, error, version):
+    # Fields per request, chosen to keep each ping about as short as the
+    # original 4-field (board/version/reason/error) payload.
+    CHUNK_SIZE = 4
+
     try:
-        import urequests
         with open("api.key", "r") as f:
             key = f.read().strip()
         with open("base_url.txt", "r") as f:
             base_url = f.read().strip()
         with open("identity.txt", "r") as f:
             board = f.read().strip()
-
-        diag = _collect_diagnostics(reason, error, version)
-        diag["board"] = board
-
-        query = "&".join(k + "=" + _urlencode(v) for k, v in diag.items())
-        url = base_url + "rescue_ping?" + query
-
-        resp = urequests.get(url, headers={"X-API-KEY": key})
-        resp.close()
     except Exception as e:
-        print("distress ping failed (non-fatal):", e)
+        print("distress ping failed (non-fatal): couldn't read local files:", e)
+        return
+
+    diag = _collect_diagnostics(reason, error, version)
+    chunks = _chunk_dict(diag, CHUNK_SIZE)
+
+    for seq, fields in enumerate(chunks):
+        try:
+            _send_ping(base_url, key, board, seq, fields)
+        except Exception as e:
+            # One chunk failing (e.g. transient Wi-Fi hiccup) shouldn't
+            # stop the rest of the diagnostics from going out.
+            print("distress ping chunk", seq, "failed (non-fatal):", e)
 
 
 def reboot_with_delay(logger, delay):
