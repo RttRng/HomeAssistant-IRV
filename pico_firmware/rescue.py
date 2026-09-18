@@ -115,8 +115,38 @@ def _chunk_dict(d, size):
     return [dict(items[i:i + size]) for i in range(0, len(items), size)]
 
 
-def _send_ping(base_url, key, board, seq, fields):
-    """Send one short GET request carrying `board`, `seq`, and `fields`.
+def _read_ping_id():
+    """Read the last-used ping id (0-99), same pattern as crash_lib's
+    crash counter. Missing/corrupt file just starts back at 0.
+    """
+    try:
+        with open("ping_id.json", "r") as f:
+            return json.load(f).get("id", 0)
+    except (OSError, ValueError):
+        return 0
+
+
+def _write_ping_id(n):
+    try:
+        with open("ping_id.json", "w") as f:
+            json.dump({"id": n}, f)
+    except OSError:
+        pass
+
+
+def _next_ping_id():
+    """Advance and persist the rotating (0-99) ping id, returning the new
+    value. Each rescue pass gets one id, sent with every chunk of that
+    pass, so the server can tell which chunks belong together without
+    needing any time-based merge window.
+    """
+    new_id = (_read_ping_id() + 1) % 100
+    _write_ping_id(new_id)
+    return new_id
+
+
+def _send_ping(base_url, key, board, ping_id, fields):
+    """Send one short GET request carrying `board`, `id`, and `fields`.
 
     Kept to roughly the same query length as the original single-field
     payload (board + version + reason + error) by capping the number of
@@ -126,7 +156,7 @@ def _send_ping(base_url, key, board, seq, fields):
     """
     import urequests
 
-    payload = {"board": board, "seq": str(seq)}
+    payload = {"board": board, "id": str(ping_id)}
     payload.update(fields)
 
     query = "&".join(k + "=" + _urlencode(v) for k, v in payload.items())
@@ -152,16 +182,17 @@ def _ping_distress(reason, error, version):
         print("distress ping failed (non-fatal): couldn't read local files:", e)
         return
 
+    ping_id = _next_ping_id()
     diag = _collect_diagnostics(reason, error, version)
     chunks = _chunk_dict(diag, CHUNK_SIZE)
 
-    for seq, fields in enumerate(chunks):
+    for fields in chunks:
         try:
-            _send_ping(base_url, key, board, seq, fields)
+            _send_ping(base_url, key, board, ping_id, fields)
         except Exception as e:
             # One chunk failing (e.g. transient Wi-Fi hiccup) shouldn't
             # stop the rest of the diagnostics from going out.
-            print("distress ping chunk", seq, "failed (non-fatal):", e)
+            print("distress ping (id", ping_id, ") chunk failed (non-fatal):", e)
 
 
 def reboot_with_delay(logger, delay):
@@ -181,6 +212,23 @@ def run(logger,reason="unknown", error=""):
         wifi_config = _read_json("wifi.json")
         version = _read_json("version.json")
         config = _read_json(f"/branches/{identity}/config.json")
+
+        # Mirror primary.py's merge of the shared top-level files into the
+        # per-board config, so pull.update() (specifically _channel())
+        # sees the same effective SETTINGS/WIFI/MQTT here as it would in
+        # normal operation. Without this, a board whose own config.json
+        # doesn't repeat e.g. SETTINGS.CHANNEL (relying on it coming from
+        # the shared settings.json) hits a KeyError inside pull.update()
+        # that gets swallowed as an "Update failed: ..." string, so
+        # rescue mode "runs" but the update silently never happens.
+        mqtt_config = _read_json("mqtt.json")
+        settings_config = _read_json("settings.json")
+        wifi_config.update(config.get("WIFI", {}))
+        mqtt_config.update(config.get("MQTT", {}))
+        settings_config.update(config.get("SETTINGS", {}))
+        config.setdefault("WIFI", {}).update(wifi_config)
+        config.setdefault("MQTT", {}).update(mqtt_config)
+        config.setdefault("SETTINGS", {}).update(settings_config)
     except Exception as e:
         print("rescue: couldn't read local config:", e)
         reboot_with_delay(logger,REBOOT_DELAY_S)
