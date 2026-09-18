@@ -118,12 +118,16 @@ def mqtt_callback(topic, msg):
                 logger.print("debug flag not present")
         elif topic == TOPIC_I["UPDATE"] and msg_me:
             try:
-                logger.wdt.feed()
-                import pull
-                result = pull.update(version,config,logger)
-                logger.print("rescue: pull result:", result)
-            except Exception as e:
-                logger.print("rescue: pull.update() itself raised:", e)
+                mqtt.client.publish(b"updatubg/command",logger.name.encode())
+                sleep(3)
+            finally:
+                try:
+                    logger.wdt.feed()
+                    import pull
+                    result = pull.update(version,config,logger)
+                    logger.print("rescue: pull result:", result)
+                except Exception as e:
+                    logger.print("rescue: pull.update() itself raised:", e)
                 
 
         else:
