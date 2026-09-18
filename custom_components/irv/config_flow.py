@@ -22,7 +22,7 @@ class IRVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return IRVOptionsFlow(config_entry)
+        return IRVOptionsFlow()
 
 
 class IRVOptionsFlow(config_entries.OptionsFlow):
@@ -34,10 +34,11 @@ class IRVOptionsFlow(config_entries.OptionsFlow):
     peripheral set isn't known up front. If no boards have reported in yet,
     the form will be empty - reopen it after boards have announced
     themselves via their retained 'discovery/<board>' topic.
-    """
 
-    def __init__(self, config_entry):
-        self.config_entry = config_entry
+    Note: self.config_entry is provided by the OptionsFlow base class
+    itself (a read-only property derived from flow context) on current
+    HA core versions - do NOT assign to it in __init__, that now raises.
+    """
 
     async def async_step_init(self, user_input=None):
         handler = self.hass.data.get(DOMAIN, {}).get("handler")
