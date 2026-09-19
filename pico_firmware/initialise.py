@@ -34,11 +34,11 @@ if not DEBUG:
     logger.set_wdt(WDT(timeout=8000))
 
 def run():
-    CRASH_THRESHOLD = 3
+    CRASH_THRESHOLD = -1
     MAX_TRACKED_CRASHES = 20
     crash_count = min(read_crash_count(), MAX_TRACKED_CRASHES)
     import rescue
-    if crash_count >= CRASH_THRESHOLD:
+    if crash_count >= CRASH_THRESHOLD and not CRASH_THRESHOLD == -1:
         print("Crash threshold reached (", crash_count, "), going to rescue")
         rescue.run(logger,reason="crash_threshold")
     else:

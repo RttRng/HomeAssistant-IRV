@@ -10,7 +10,7 @@ TOPIC_DISCOVERY_WILDCARD = "discovery/#"
 TOPIC_DISCOVERY_PREFIX = "discovery/"
 TOPIC_STATUS = "status"
 TOPIC_PING = "ping"
-TOPIC_PONG = "pong"
+TOPIC_PONG = "pong/"
 TOPIC_CONTROL_PREFIX = "control"
 
 

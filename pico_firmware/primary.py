@@ -48,7 +48,7 @@ TOPIC_I = {"CHECK":b'check',
            "CONTROL":b'control',
            "DATA":b'give',
            "RESET":b'reset',
-           "PONG":b'pong',
+           "PONG":'pong/'+name_base,
            "UNDEBUG":b'undebug',
            "UPDATE":b'update'
            }

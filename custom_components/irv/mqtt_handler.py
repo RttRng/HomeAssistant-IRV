@@ -439,4 +439,4 @@ class IRVMQTTHandler:
             ent.set_online()
 
     async def _handle_ping(self, payload: str):
-        await self.publish(TOPIC_PONG, payload, retain=False, qos=2, entity_id=None)
+        await self.publish(TOPIC_PONG+payload, payload, retain=False, qos=2, entity_id=None)
