@@ -85,4 +85,5 @@ BUTTONS = [
     ("Data", "give", "ALL"),
     ("Goodbye", "status", "goodbye"),
     ("Reset", "reset", "ALL"),
+    ("Update", "update", "ALL"),
 ]
