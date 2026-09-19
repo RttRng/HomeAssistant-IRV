@@ -48,15 +48,15 @@ TOPIC_I = {"CHECK":b'check',
            "CONTROL":b'control',
            "DATA":b'give',
            "RESET":b'reset',
-           "PONG":'pong/'+name_base,
+           "PONG":bytes('pong/'+name_base,"utf-8"),
            "UNDEBUG":b'undebug',
            "UPDATE":b'update'
            }
 TOPIC_I_LIST = [x for x in TOPIC_I.values()]
 TOPIC_O = {"CHECK":b'status',
-           "REPORT":name_base,
+           "REPORT":bytes(name_base,"utf-8"),
            "PING":b'ping',
-           "DISCOVER":'discovery/'+name_base
+           "DISCOVER":bytes('discovery/'+name_base,"utf-8")
            }
 
 peripherals = []
