@@ -89,8 +89,7 @@ class IRVMQTTHandler:
         # board -> status binary_sensor entity (online/offline heartbeat)
         self.status_entities: dict[str, object] = {}
 
-        # entity_id -> entity, for desired-state entities (switch/select) that support restore
-        self.switches: dict[str, object] = {}
+
 
         # async_add_entities callbacks, set by each platform's async_setup_entry
         self.add_sensor_entities = None
@@ -101,7 +100,6 @@ class IRVMQTTHandler:
         # Persistent storage for user-set outputs (switches, selects)
         self.store = Store(hass, 1, "irv_state.json")
         self.saved_state = {}
-        hass.loop.create_task(self._load_state())
 
         # Config-entry options: the entry itself (set once async_setup_entry
         # has it) plus a flattened "board|name" -> offset map kept in sync
@@ -193,7 +191,7 @@ class IRVMQTTHandler:
     # PERSISTENCE
     # -------------------------------------------------------------------
 
-    async def _load_state(self):
+    async def async_load_state(self):
         data = await self.store.async_load()
         if data:
             self.saved_state = data
@@ -201,15 +199,40 @@ class IRVMQTTHandler:
     async def save_state(self):
         await self.store.async_save(self.saved_state)
 
-    async def publish(self, topic, payload, qos=0, retain=False, entity_id=None):
-        if entity_id is not None:
-            self.saved_state[entity_id] = payload
+    def get_saved_state(self, entity):
+        """Last desired state for a control entity, or None.
+
+        Keyed by unique_id (stable across renames); falls back to the
+        entity_id key used by older versions of this integration.
+        """
+        return self.saved_state.get(
+            entity.unique_id, self.saved_state.get(entity.entity_id)
+        )
+
+    async def publish(self, topic, payload, qos=0, retain=False, state_key=None):
+        if state_key is not None and self.saved_state.get(state_key) != payload:
+            self.saved_state[state_key] = payload
             await self.save_state()
 
         if not topic:
             return
 
         await mqtt.async_publish(self.hass, topic, payload, qos=qos, retain=retain)
+
+    async def send_all_controls(self):
+        """Re-publish the desired state of every control entity
+        (switches and SGReady selects), same qos/retain as on change.
+        Entities with no known desired state are skipped.
+        """
+        for ents in list(self.entities.values()):
+            for kind in ("switch", "select"):
+                ent = ents.get(kind)
+                if ent is None or ent.hass is None:
+                    continue
+                try:
+                    await ent.async_publish_state()
+                except Exception:  # noqa: BLE001
+                    _LOGGER.exception("IRV: failed to re-send %s", ent.unique_id)
 
     async def restore_outputs(self):
         """Restore last known desired-state (switch/select) values after restart."""
@@ -225,6 +248,13 @@ class IRVMQTTHandler:
                     entity.set_restored_state(state)
                 except Exception as e:  # noqa: BLE001
                     _LOGGER.warning(e)
+
+    async def send_all_switches(self):
+        """Re-publish the desired state of every switch (retain/qos as on change)."""
+        for ents in self.entities.values():
+            sw = ents.get("switch")
+            if sw is not None and sw.hass is not None:
+                await sw.async_publish_state()
 
     # -------------------------------------------------------------------
     # SUBSCRIBE + ROUTING
@@ -332,8 +362,7 @@ class IRVMQTTHandler:
         from .sensor import IRVSensor, IRVLabelSensor, IRVRawStateSensor
         from .binary_sensor import IRVBinarySensor
         from .switch import IRVSwitch
-        from .select import IRVSGReadySelect
-
+        from .select import IRVSGReadySelect, IRVSwitchSelect
         sensors = []
         binaries = []
         switches = []
@@ -346,12 +375,25 @@ class IRVMQTTHandler:
                 self._register_entity(p, "sensor", ent)
                 sensors.append(ent)
 
-            elif p.ptype in (TYPE_SWITCH, TYPE_BINARYSENSOR):
+            elif p.ptype == TYPE_SWITCH:
                 sw = IRVSwitch(self, p, device_info)
                 self._register_entity(p, "switch", sw)
-                self.register_switch(sw)
                 switches.append(sw)
 
+                sw_select = IRVSwitchSelect(self, p, device_info, sw)
+                self._register_entity(p, "switch_select", sw_select)
+                selects.append(sw_select)
+
+                bin_ent = IRVBinarySensor(self, p, device_info)
+                self._register_entity(p, "binary_sensor", bin_ent)
+                binaries.append(bin_ent)
+
+                label_ent = IRVLabelSensor(self, p, device_info)
+                self._register_entity(p, "label_sensor", label_ent)
+                sensors.append(label_ent)
+
+            elif p.ptype == TYPE_BINARYSENSOR:
+                # Read-only: no control entities.
                 bin_ent = IRVBinarySensor(self, p, device_info)
                 self._register_entity(p, "binary_sensor", bin_ent)
                 binaries.append(bin_ent)
@@ -363,7 +405,6 @@ class IRVMQTTHandler:
             elif p.ptype == TYPE_SGREADY:
                 sel = IRVSGReadySelect(self, p, device_info)
                 self._register_entity(p, "select", sel)
-                self.register_switch(sel)
                 selects.append(sel)
 
                 label_ent = IRVLabelSensor(self, p, device_info)
@@ -439,4 +480,4 @@ class IRVMQTTHandler:
             ent.set_online()
 
     async def _handle_ping(self, payload: str):
-        await self.publish(TOPIC_PONG+payload, payload, retain=False, qos=2, entity_id=None)
+        await self.publish(TOPIC_PONG+payload, payload, retain=False, qos=2)

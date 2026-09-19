@@ -13,28 +13,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType):
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    # 1) create handler
     handler = IRVMQTTHandler(hass)
+    await handler.async_load_state()   # must finish before any entity exists
 
-    # 2) store handler in hass.data
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["handler"] = handler
 
-    # 3) hand the handler its config entry (loads any saved sensor
-    #    calibration offsets from entry.options) and listen for changes
-    #    made later via the integration's Configure (options) form
     handler.set_entry(entry)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
-    # 4) start platforms (registers each platform's async_add_entities callback)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    # 5) subscribe to MQTT (discovery/#, status, ping) - after platforms so
-    #    add_entities callbacks are ready before any discovery message can arrive
     await handler.async_subscribe()
-
-    # 6) restore desired-state entities (switches/selects) after subscribe
-    await handler.restore_outputs()
 
     return True
 
